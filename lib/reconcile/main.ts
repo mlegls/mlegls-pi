@@ -13,9 +13,9 @@ import { commonDir } from "../thread/git";
 import { pidAlive as alive } from "../wm";
 import { existsSync, linkSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { discardRefinement, replaceRefinement } from "./refinement";
+import { recoverRefinements } from "./refinement";
 import { parseArgs } from "node:util";
-import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, stopRefinementWriter, updateState, workerHandles, type State } from "./reconcile.ts";
+import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, withIntegrationLock, updateState, workerHandles, type State } from "./reconcile.ts";
 
 import { codeStatus } from "./code-version";
 import { captureWorkerForeignWork } from "./foreign-work";
@@ -69,13 +69,10 @@ export async function stop(cwd: string, root: string) {
 	// The run's checkout may be gone (its owner's worktree, removed with the owner's thread): its state is in the
 	// repository's common dir, which the caller's checkout reaches as well.
 	cwd = s.pr && existsSync(s.pr.path) ? s.pr.path : existsSync(s.cwd) ? s.cwd : cwd;
-	const refinement = { state: s, tracker: reconcilerTracker(cwd, root), save: () => saveState(s),
-		locked: async <T>(work: () => Promise<T>) => work(),
-		stopWriter: (attempt: State["refinements"][string]) => stopRefinementWriter(s, attempt) };
-	for (const attempt of Object.values(s.refinements)) if (attempt.phase === "adopting" && attempt.successor)
-		await replaceRefinement(refinement, attempt.handle, attempt.successor, true);
-	for (const attempt of Object.values(s.refinements))
-		if (attempt.phase !== "accepted" && attempt.phase !== "removed") await discardRefinement(refinement, attempt.handle);
+	if (Object.values(s.refinements).some(a => a.phase === "accepting"))
+		await recoverRefinements({ state: s, tracker: reconcilerTracker(cwd, root), save: () => saveState(s),
+			locked: work => withIntegrationLock(cwd, work) });
+	for (const a of Object.values(s.refinements)) if (a.phase === "writing") a.phase = "removed";
 	const threads = await bbThreads(), repo = commonDir(cwd);
 	const handles = new Map<string, Handle>();
 	const add = (h: Handle) => handles.set(topic(h) + ":" + resolve(h.path), h);
@@ -107,7 +104,7 @@ export async function stop(cwd: string, root: string) {
 	const resume = resumeRecords(s, cwd);
 	for (const [node, ex] of Object.entries(s.exceptions)) if (ex.baseConflict) delete resume[node];
 	const stopped = updateState(cwd, root, prior => ({
-		...prior!, resume, pid: undefined, stopping: undefined, finished: "stopped", finishedAt: undefined,
+		...prior!, refinements: s.refinements, resume, pid: undefined, stopping: undefined, finished: "stopped", finishedAt: undefined,
 		// Stopping retires workers, but a conflict already sent to the owner still awaits their decision.
 		chains: Object.fromEntries(Object.entries(s.chains).filter(([node]) => s.exceptions[node]?.baseConflict)),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).filter(([, ex]) => ex.baseConflict)),

@@ -111,16 +111,16 @@ Fields use logical slugs for `part-of` and issue entries in `blocked-by`; guards
 
 Pass only the keys you intend to change. For an edit based on a read, read with `--with-revision` (JSON `{text, revision}` or `{fields, revision}`) and pass that revision to `update --if-revision`. If the issue has changed, the update refuses before writing; re-read and reapply the intended edit. Independent patches can omit the revision.
 
-Copyable create/update for an existing `example-parent` (`PI_SKILL_DIR` names this tracker skill; `PI_SESSION_ID` is your session; the supplied `CLAIM_TOKEN` is `reconcile:<root>/<refine-handle>` during refinement):
+Outside refinement, create/update for an existing `example-parent`:
 
 ```sh
-printf '%s\n' 'The child'\''s goal and shape.' | bun "$PI_SKILL_DIR/scripts/issues.ts" create example-child --fields "{\"stage\":\"ready\",\"assignee\":\"agent:auto-routine\",\"author\":\"session:$PI_SESSION_ID\",\"part-of\":\"example-parent\",\"claimed-by\":\"$CLAIM_TOKEN\"}" --body-file -
+printf '%s\n' 'The child'\''s goal and shape.' | bun "$PI_SKILL_DIR/scripts/issues.ts" create example-child --fields "{\"stage\":\"ready\",\"assignee\":\"agent:auto-routine\",\"author\":\"session:$PI_SESSION_ID\",\"part-of\":\"example-parent\"}" --body-file -
 printf '%s\n' 'The parent'\''s goal and shape, with its tasks.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ready","priority":null}' --body-file -
 ```
 
 `check` prints tracker attachment locators as `issues/attachments/<file>.md`. Use `text <locator>` to read one or `update <locator> --body-file <path|->` to replace the entire Markdown file. The `issues/` prefix and `.md` extension are optional. Attachment updates are for existing files and use no issue fields.
 
-Writes validate the resulting global tracker before publication and commit only touched canonical tracker paths, never unrelated staged files. The commit runs in a detached persister outside the caller's process group: a write whose command timed out or was killed after the working-tree write still commits, so check `git log` on the issue before retrying. Persistence waits out an index lock a live Git holds and removes one only when it is over 30s old with no live holder, naming it on stderr. This is not permission to commit unrelated canonical files. `remove` is reserved for owned provisional children, not general triage. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.
+Writes validate the resulting global tracker before publication and commit only touched canonical tracker paths, never unrelated staged files. The commit runs in a detached persister outside the caller's process group: a write whose command timed out or was killed after the working-tree write still commits, so check `git log` on the issue before retrying. Persistence waits out an index lock a live Git holds and removes one only when it is over 30s old with no live holder, naming it on stderr. This is not permission to commit unrelated canonical files. Refiners commit `.reconcile/proposal/children/<slug>.md` and optional `.reconcile/proposal/parent.md` in their worker checkout; acceptance publishes them through the tracker. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.
 
 ## procedure
 

@@ -31,7 +31,7 @@ test("collector-local landings release remaining work without releasing canonica
 		const canonical = f.tracker.snapshot(), before = structuredClone([...canonical]);
 		const context = { root: "root", into: "root", landed: {
 			a: { into: "root", head: "code-head", at: new Date().toISOString() },
-		}, attemptClaims: new Set<string>(), withheld: new Set<string>() };
+		}, workerClaims: new Set<string>() };
 		const local = schedulingView(canonical, context);
 		expect(local.get("a")?.satisfied).toBe(true);
 		expect(local.get("a")?.done).toBe(false);
@@ -48,12 +48,10 @@ test("collector-local landings release remaining work without releasing canonica
 
 		f.tracker.update("a", { "claimed-by": "session:foreign" });
 		expect(schedulingView(f.tracker.snapshot(), context).get("root")?.frontier).toBe(false);
-		f.tracker.update("a", { "claimed-by": "reconcile:root/refine" });
-		const provisional = schedulingView(f.tracker.snapshot(), { ...context,
-			attemptClaims: new Set(["reconcile:root/refine"]), withheld: new Set(["a"]),
-		});
-		expect(provisional.get("a")?.satisfied).toBe(false);
-		expect(provisional.get("root")?.frontier).toBe(false);
+		f.tracker.update("a", { "claimed-by": "session:worker" });
+		const run = schedulingView(f.tracker.snapshot(), { ...context, workerClaims: new Set(["session:worker"]) });
+		expect(run.get("a")?.satisfied).toBe(true);
+		expect(run.get("root")?.frontier).toBe(true);
 		expect([...canonical]).toEqual(before);
 		expect(canonical.get("a")?.done).toBe(false);
 		expect(f.tracker.snapshot().get("outside")?.frontier).toBe(false);

@@ -6,16 +6,13 @@ import type { LandingLedger } from "./tracker-state.ts";
 export interface ScheduledIssue extends Issue {
 	blockers: string[];
 	satisfied: boolean;
-	provisional: boolean;
+
 }
 export interface SchedulingContext {
 	root: string;
 	into: string;
 	landed: LandingLedger;
-	/** Only recorded, active/adopting attempt tokens; never a prefix match. */
-	attemptClaims: ReadonlySet<string>;
-	/** Unaccepted owned descendants, including creates found after restart. */
-	withheld: ReadonlySet<string>;
+	workerClaims: ReadonlySet<string>;
 	/** Mirror the CLI's explicit-scope deferral exception for this selection. */
 	explicit?: boolean;
 	/** Landed into another destination whose landed head this destination already contains. */
@@ -32,9 +29,8 @@ export function schedulingView(global: ReadonlyMap<string, Issue>, context: Sche
 		siblings.push(row);
 		children.set(row.partOf, siblings);
 	}
-	const seeded = (row: Issue) => !context.withheld.has(row.slug)
-		&& (row.archived || row.done || context.landed[row.slug]?.into === context.into
-			|| !!context.inherited?.has(row.slug));
+	const seeded = (row: Issue) => row.archived || row.done || context.landed[row.slug]?.into === context.into
+			|| !!context.inherited?.has(row.slug);
 	const effective = new Map<string, Issue["effectiveStage"]>();
 	const satisfied = new Map<string, boolean>();
 	function resolve(row: Issue, path = new Set<string>()): void {
@@ -51,14 +47,14 @@ export function schedulingView(global: ReadonlyMap<string, Issue>, context: Sche
 		const stage = stages[Math.min(stages.indexOf(row.ownStage ?? "done"),
 			...kids.map(kid => stages.indexOf(effective.get(kid.slug)!)))];
 		effective.set(row.slug, stage);
-		satisfied.set(row.slug, !context.withheld.has(row.slug) && stage === "done"
+		satisfied.set(row.slug, stage === "done"
 			&& kids.every(kid => satisfied.get(kid.slug)));
 	}
 	for (const row of global.values()) resolve(row);
 	function subtree(row: Issue): Issue[] {
 		return [row, ...(children.get(row.slug) ?? []).filter(kid => !kid.archived).flatMap(subtree)];
 	}
-	const ignoredClaims = new Set(["reconcile:" + context.root, ...context.attemptClaims]);
+	const ignoredClaims = new Set(["reconcile:" + context.root, ...context.workerClaims]);
 	const projected = new Map<string, ScheduledIssue>();
 	for (const row of global.values()) {
 		const scope = subtree(row);
@@ -82,10 +78,10 @@ export function schedulingView(global: ReadonlyMap<string, Issue>, context: Sche
 		const deferred = nodes.some(node => node.priority === 4);
 		projected.set(row.slug, {
 			...row, blockedBy: [...row.blockedBy], guards: [...row.guards],
-			effectiveStage, satisfied: satisfied.get(row.slug)!, provisional: context.withheld.has(row.slug),
+			effectiveStage, satisfied: satisfied.get(row.slug)!,
 			ready, eligible, blockers, claims, selectors, deferred,
 			frontier: !row.archived && ready && eligible && !blockers.length && !claims.length
-				&& (context.explicit || !deferred) && !scope.some(node => context.withheld.has(node.slug)),
+				&& (context.explicit || !deferred),
 		});
 	}
 	return projected;
