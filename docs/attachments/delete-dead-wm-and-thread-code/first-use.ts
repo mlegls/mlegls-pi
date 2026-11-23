@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dispatch, retire } from "../../../lib/dispatch";
+import { abandonThread } from "../../../lib/thread";
 import { fakeBb } from "../../../lib/thread/fake-bb";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "retire-first-use-")));
@@ -18,18 +19,20 @@ try {
 	git(cwd, "config", "user.name", "Fixture");
 	git(cwd, "config", "user.email", "fixture@example.invalid");
 	git(cwd, "commit", "--allow-empty", "-qm", "seed");
-	const wave = await dispatch(["merged", "unmerged"].map(handle => ({ handle, prompt: "Offline retirement fixture", model: "fake/model", effort: "low" })),
-		{ cwd, run: "retire-fixture", active: [], maxConcurrent: 2 });
-	const [merged, unmerged] = wave.submitted;
-	if (wave.failed || !merged || !unmerged || wave.submitted.some(h => !existsSync(h.path) || !bb.threads().some(t => t.id === h.bb && !t.archivedAt)))
+	const wave = await dispatch(["merged", "unmerged", "kept"].map(handle => ({ handle, prompt: "Offline retirement fixture", model: "fake/model", effort: "low" })),
+		{ cwd, run: "retire-fixture", active: [], maxConcurrent: 3 });
+	const [merged, unmerged, kept] = wave.submitted;
+	if (wave.failed || !merged || !unmerged || !kept || wave.submitted.some(h => !existsSync(h.path) || !bb.threads().some(t => t.id === h.bb && !t.archivedAt)))
 		throw new Error("Workers not ready: " + JSON.stringify(wave));
 	writeFileSync(join(unmerged.path, "work.txt"), "unlanded patch\n");
 	git(unmerged.path, "add", "work.txt");
 	git(unmerged.path, "commit", "-qm", "unlanded");
-	console.log("ready: two fake BB workers on linked worktrees, one with an unmerged commit");
-	for (const [label, worker, selector] of [["receipt", merged, merged], ["bare handle", unmerged, unmerged.handle]] as const) {
+	console.log("ready: three fake BB workers on linked worktrees, one with an unmerged commit");
+	const cases = [["receipt", merged, () => retire(merged, { cwd })], ["bare handle", unmerged, () => retire(unmerged.handle, { cwd })],
+		["explicit keepBranch, merged", kept, () => abandonThread(kept.bb!, { keepBranch: true })]] as const;
+	for (const [label, worker, run] of cases) {
 		const before = bb.calls().length;
-		const retirement = await retire(selector, { cwd });
+		const retirement = await run();
 		console.log(JSON.stringify({ label, retirement,
 			threadLists: bb.calls().slice(before).filter(([group, action]) => group === "thread" && action === "list").length,
 			archived: !!bb.threads().find(t => t.id === worker.bb)?.archivedAt,
