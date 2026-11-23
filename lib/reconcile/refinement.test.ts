@@ -21,7 +21,7 @@ test("failed refinement stops its writer before graph-safe cleanup and replays r
 			} },
 		};
 		const attempt = beginRefinement(context, "root", "failed");
-		f.create("container", { stage: "spec", "part-of": "root", "claimed-by": attempt.claim });
+		f.create("container", { stage: "ready", decompose: true, "part-of": "root", "claimed-by": attempt.claim });
 		f.create("leaf", { "part-of": "container", "claimed-by": attempt.claim });
 		f.create("dependent", { "part-of": "container", "claimed-by": attempt.claim, "blocked-by": ["leaf"] });
 		f.tracker.update("container", { stage: null });

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { ASSIGNEE_GRAMMAR, parseAssignee } from "./assignee.ts";
-import { knownStage, normalizeStage, normalizeStageFields } from "./stage.ts";
+import { STAGES, refuseLegacyStage } from "./stage.ts";
 import type { Fields, Tracker, TrackerOptions } from "./tracker.ts";
 import type { GithubNode } from "./tracker-github.ts";
 import {
@@ -120,7 +120,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		requireGithub(fields && typeof fields === "object" && !Array.isArray(fields), "fields must be an object");
 		requireGithub(body === undefined || typeof body === "string" && !body.includes("<!-- mlegls-pi:tracker"), "body must be Markdown without a reserved envelope");
 		for (const key of Object.keys(fields)) requireGithub(!key.startsWith("$") && !["github", "github-comments", "github-types"].includes(key), "read-only/reserved field " + key);
-		if (fields.stage !== undefined && fields.stage !== null) requireGithub(knownStage(fields.stage) && normalizeStage(fields.stage) !== "done", "unsupported stage; complete via close");
+		if (fields.stage !== undefined && fields.stage !== null) { refuseLegacyStage(fields); requireGithub(STAGES.includes(fields.stage as never) && fields.stage !== "done", "unsupported stage; complete via close"); }
 		if (fields.author !== undefined && fields.author !== null) requireGithub(typeof fields.author === "string" && fields.author.trim(), "author must be nonempty provenance");
 		if (fields.title !== undefined) requireGithub(typeof fields.title === "string" && fields.title.trim(), "title must be nonempty");
 		if (fields.priority !== undefined && fields.priority !== null) requireGithub([1, 2, 3].includes(fields.priority as number), "priority must be 1, 2 or 3 (the p1|p2|p3 label)");
@@ -267,7 +267,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 			const readyFor = assigneeRole(request.fields?.assignee);
 			return write((snapshot, run) => {
 				requireGithub(typeof request.slug === "string" && request.slug.trim() && typeof request.body === "string", "create requires a requested title/slug and Markdown body");
-				const fields: Fields = normalizeStageFields({ ...request.fields, author: request.fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined) });
+				const fields: Fields = ({ ...request.fields, author: request.fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined) });
 				requireGithub(fields.author, "create requires author or PI_SESSION_ID");
 				const rows = view(snapshot); validate(fields, rows, "new", request.body);
 				const labelIds = labels(snapshot, undefined, fields, readyFor);
@@ -323,7 +323,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		},
 		update(slug, fields, body) {
 			const readyFor = assigneeRole(fields?.assignee);
-			write((snapshot, run) => applyUpdate(snapshot, slug, normalizeStageFields(fields), body, run, readyFor));
+			write((snapshot, run) => applyUpdate(snapshot, slug, fields, body, run, readyFor));
 		},
 		close(slug, result) {
 			write((snapshot, run) => {

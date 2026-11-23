@@ -25,7 +25,7 @@ test("an interrupted chain launch adopts its titled worker or launches once unde
 			mkdirSync(join(f.root, "agents/roles"), { recursive: true });
 			writeFileSync(join(f.root, "agents/shell.md"), "---\nrole: implement\n---\nShell fixture.\n");
 			writeFileSync(join(f.root, "agents/roles/implement.md"), "Shell fixture.\n");
-			f.tracker.update("root", { stage: "ticket", assignee: "agent:shell" });
+			f.tracker.update("root", { stage: "ready", decompose: null, assignee: "agent:shell" });
 			f.bb.addThread("thr_owner");
 			const launching = "root-implement-1";
 			const worker = registered ? f.worker(launching, f.cwd, "main") : undefined;

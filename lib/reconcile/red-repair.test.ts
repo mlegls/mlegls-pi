@@ -12,7 +12,7 @@ test("a cross-file repair is admitted through " + signal + " without bypassing i
 	const controller = new AbortController();
 	let timer: ReturnType<typeof setInterval> | undefined, deadline: ReturnType<typeof setTimeout> | undefined;
 	try {
-		f.tracker.update("root", { stage: "ticket" }, signal === "body" ? "Repairs .git/verify-main/log/9cc25e70c\n" : "root contract\n");
+		f.tracker.update("root", { stage: "ready", decompose: null }, signal === "body" ? "Repairs .git/verify-main/log/9cc25e70c\n" : "root contract\n");
 		f.commit(f.cwd, "mise.toml", '[tasks.pre-integrate]\nrun = "test -e repair.ts"\n');
 		f.bb.addThread("thr_owner");
 		const worker = f.worker("root-review-1", f.cwd, "main");

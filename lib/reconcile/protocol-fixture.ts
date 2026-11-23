@@ -37,9 +37,9 @@ export function protocolFixture() {
 	const tracker = getTracker(cwd, { inflight: false }), stateFile = join(root, "run.json");
 	const state: GlobalRunState = { root: "root", cwd, landed: {}, results: {}, landingOps: {}, refinements: {} };
 	const create = (slug: string, fields: Fields = {}) => tracker.create({
-		slug, fields: { stage: "ticket", assignee: "agent", author: "user:fixture", ...fields }, body: slug + " contract\n",
+		slug, fields: { stage: "ready", assignee: "agent", author: "user:fixture", ...fields }, body: slug + " contract\n",
 	});
-	create("root", { stage: "spec" });
+	create("root", { stage: "ready", decompose: true });
 	const collector = join(root, "collector");
 	git(cwd, "worktree", "add", "--no-checkout", "-qb", "collector", collector);
 	excludeTracker(collector);

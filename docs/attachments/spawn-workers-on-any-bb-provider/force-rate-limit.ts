@@ -24,7 +24,7 @@ try {
 	process.env.PI_RECONCILE_TICK_MS = "150";
 	writeFileSync(join(agents, "provider-drill.md"), "---\nrole: implement\nmodel: codex/first:high, openai/second:low\n---\nProvider drill.\n");
 	writeFileSync(join(agents, "roles/implement.md"), "Report by ending the turn.\n");
-	f.tracker.update("root", { stage: "ticket", assignee: "agent:provider-drill" });
+	f.tracker.update("root", { stage: "ready", decompose: null, assignee: "agent:provider-drill" });
 	f.bb.addThread("thr_fixture_owner");
 	start({ cwd: f.cwd, root: "root", owner: "thr_fixture_owner", budget: 1 });
 	running = true;

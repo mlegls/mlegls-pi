@@ -13,7 +13,7 @@ test("a node closed under its running chain is held for the owner, and reopening
 		expect(ex.reason).toBe("closed outside the run while its chain runs");
 		expect(ex.level).toBe("owner");
 		expect(f.state()!.chains.solo.phase).toBe("implement");
-		getTracker(f.repo).update("solo", { stage: "ticket" });
+		getTracker(f.repo).update("solo", { stage: "ready", decompose: null });
 		await until(() => f.state()?.chains.solo.phase === "drive" && f.bb.threads().some(t => t.title.includes("-drive-")));
 		expect(f.state()!.exceptions.solo).toBeUndefined();
 	} finally { await f.close(); }

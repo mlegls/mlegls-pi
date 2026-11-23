@@ -18,7 +18,7 @@ export async function replay(mode: typeof scenarios[number]) {
 		mkdirSync(join(f.root, "agents/roles"), { recursive: true });
 		writeFileSync(join(f.root, "agents/shell.md"), "---\nrole: implement\n---\nOffline worker.\n");
 		writeFileSync(join(f.root, "agents/roles/implement.md"), "Offline worker.\n");
-		f.tracker.update("root", { stage: "ticket", assignee: "agent:shell" });
+		f.tracker.update("root", { stage: "ready", decompose: null, assignee: "agent:shell" });
 		f.bb.addThread(owner);
 		const bin = join(f.root, "bin");
 		mkdirSync(bin);
