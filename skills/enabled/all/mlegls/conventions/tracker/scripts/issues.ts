@@ -65,6 +65,10 @@ export function contract(text: string) {
     return { doc, body: text.slice(m[0].length) };
 }
 
+export function issueLinkSlug(value: string): string | undefined {
+  return /^\[\[projects\/[^/\[\]#|\s]+\/issues\/(?:archive\/)?([^/\[\]#|\s]+)(?:\|[^\[\]\r\n]+)?\]\]$/.exec(value)?.[1];
+}
+
 function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "file" | "archived"> {
   try {
     const raw = contract(text).doc.toJS({ maxAliasCount: 0 });
@@ -72,9 +76,10 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
     if ("decompose" in raw && typeof raw.decompose !== "boolean") throw new Error("decompose must be true or false");
     const fm = normalizeStageFields(raw);
     const link = (value: unknown): string => {
-      if (typeof value !== "string" || !/^\[\[projects\/[^/\[\]#|\s]+\/issues\/(?:archive\/)?[^/\[\]#|\s]+(?:\|[^\[\]\r\n]+)?\]\]$/.test(value))
+      const slug = typeof value === "string" && issueLinkSlug(value);
+      if (!slug)
         throw new Error("relations must be vault-absolute issue wikilinks");
-      return validSlug(slugOf(value));
+      return validSlug(slug);
     };
     if ("next" in fm) {
       if (!KINDS.includes(fm.next)) throw new Error("next must be one of " + KINDS.join(" "));
@@ -160,7 +165,7 @@ function validateGraph(all: Map<string, Issue>): void {
   }
 }
 
-function validSlug(slug: string): string {
+export function validSlug(slug: string): string {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(slug)) throw new Error("invalid issue slug: " + slug);
   return slug;
 }

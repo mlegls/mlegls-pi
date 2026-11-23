@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import { join } from "node:path";
 import { parseAssignee } from "../assignee.ts";
-import { contract } from "../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts";
+import { contract, issueLinkSlug, validSlug } from "../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts";
 import { git } from "./checks.ts";
 import { normalizeStageFields } from "../stage.ts";
 import type { Fields, NewIssue, Tracker } from "../tracker.ts";
@@ -64,12 +64,9 @@ export interface RefinementAcceptanceReceipt {
 function requireProposal(value: unknown, message: string): asserts value {
 	if (!value) throw new Error("Invalid refinement proposal: " + message);
 }
-const validSlug = (value: string) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(value);
 function relation(value: unknown): string {
 	requireProposal(typeof value === "string", "expected issue slug or wikilink");
-	const slug = /^\[\[projects\/[^/\[\]#|\s]+\/issues\/(?:archive\/)?([^/\[\]#|\s]+)(?:\|[^\[\]\r\n]+)?\]\]$/.exec(value)?.[1] ?? value;
-	requireProposal(validSlug(slug), "invalid issue slug " + value);
-	return slug;
+	return validSlug(issueLinkSlug(value) ?? value);
 }
 
 function ordered(ids: Iterable<string>, edges: (id: string) => string[], kind: string): string[] {
