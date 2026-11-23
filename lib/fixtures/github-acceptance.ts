@@ -19,7 +19,7 @@ export function setupCheckout(dir: string, issues: ReturnType<typeof issue>[]) {
 	return { cwd, fake: installFakeGh(join(dir, "bin"), newState(issues)) };
 }
 export function proposed(alias: string, parent: string, blockers?: string[]): ProposedChild {
-	return { alias, fields: { assignee: "agent", author: "session:fixture", "part-of": parent, ...(blockers && { "blocked-by": blockers }) }, body: alias + "\n" };
+	return { alias, fields: { stage: "ready", assignee: "agent", author: "session:fixture", "part-of": parent, ...(blockers && { "blocked-by": blockers }) }, body: alias + "\n" };
 }
 export function accepting(cwd: string, node: string, children: ProposedChild[]) {
 	return { node, handle: node, phase: "accepting" as const, acceptance: {
