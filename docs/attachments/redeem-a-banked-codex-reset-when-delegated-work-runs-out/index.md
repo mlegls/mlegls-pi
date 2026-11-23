@@ -1,5 +1,7 @@
 # Drive a banked Codex reset
 
+[First-use observations and replay checks](drive.md).
+
 From the candidate checkout with `mise run setup` complete (Bun and the project dependencies installed):
 
 ```sh
