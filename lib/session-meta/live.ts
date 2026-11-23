@@ -59,8 +59,8 @@ export function takeRetired(record: Pick<Live, "pid" | "sessionId">): boolean {
 	return marked;
 }
 
-/** Records whose process is still alive; stale ones are deleted on the way. */
-export function readLive(strict = false): Live[] {
+/** Records whose process is still alive; by default, prune dead receipts on the way. */
+export function readLive(strict = false, { prune = true } = {}): Live[] {
 	const out: Live[] = [];
 	let names: string[] = [];
 	try { names = readdirSync(liveDir()); }
@@ -74,7 +74,7 @@ export function readLive(strict = false): Live[] {
 			try { process.kill(record.pid, 0); out.push(record); }
 			catch (error) {
 				if (strict && (error as { code?: string }).code !== "ESRCH") throw error;
-				removeLive(record.pid);
+				if (prune) removeLive(record.pid);
 			}
 		} catch (error) { if (strict && (error as { code?: string }).code !== "ENOENT") throw error; }
 	}
