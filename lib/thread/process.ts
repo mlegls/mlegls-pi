@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { accessSync, constants } from "node:fs";
+import { accessSync, constants, readFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 
 export function command(bin: string, args: string[], cwd?: string, env = process.env): Promise<string> {
@@ -17,6 +17,32 @@ export function executable(name: string): string {
 		try { accessSync(path, constants.X_OK); return path; } catch {}
 	}
 	throw new Error("Executable not found on PATH: " + name);
+}
+
+export interface ProcessReceipt {
+	id: string;
+	name: string;
+	status: string;
+	endTime: number | null;
+	exitCode: number | null;
+	interruption?: string;
+}
+
+export function processReceipts(dir: string, missingMeansEmpty = false): (ProcessReceipt | undefined)[] | undefined {
+	try {
+		const registry = JSON.parse(readFileSync(join(dir, "registry.json"), "utf8"));
+		if (registry.version === 1 && Array.isArray(registry.records)) return registry.records.map((r: { info?: ProcessReceipt }) => r?.info);
+	} catch (e) { if (missingMeansEmpty && (e as NodeJS.ErrnoException).code === "ENOENT") return []; }
+}
+
+export const liveProcessStatus = (status?: string) => status === "running" || status === "terminating" || status === "terminate_timeout";
+
+/** Read the session receipt, not the group leader's PID: the manager can still be waiting on its descendants. */
+export function managedProcess(sessionFile: string, missingMeansEmpty = false): boolean | undefined {
+	const statuses = processReceipts(sessionFile + ".processes", missingMeansEmpty)?.map(info => info?.status);
+	if (!statuses) return undefined;
+	if (statuses.some(liveProcessStatus)) return true;
+	return statuses.every(status => status === "exited" || status === "killed") ? false : undefined;
 }
 
 export const quote = (text: string): string => "'" + text.replaceAll("'", "'\"'\"'") + "'";
