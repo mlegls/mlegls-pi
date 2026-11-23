@@ -47,7 +47,7 @@ type Issue = {
 
 const slugOf = (link: string) => basename(link.replace(/^\[\[|\]\]$/g, "").split("|")[0]);
 
-function contract(text: string) {
+export function contract(text: string) {
     const m = text.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m);
     if (!m || m.index !== 0) throw new Error("missing or unterminated frontmatter");
     const doc = parseDocument(m[1], { uniqueKeys: true, merge: false });
