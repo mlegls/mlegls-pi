@@ -33,7 +33,7 @@ for (const mode of modes.filter(m => !selected || selected === m)) {
 			f.commit(worker.path, ".reconcile/proposal/" + path + ".md", "---\n" + fields + "\n---\n" + body);
 		if (mode === "promote") propose("parent", "decompose: false");
 		else {
-			propose("children/consumer", "stage: ready\npart-of: root\nassignee: agent:shell\nblocked-by: [provider]", "Use the interface.\n");
+			propose("children/consumer", "stage: ready\npriority: 4\npart-of: root\nassignee: agent:shell\nblocked-by: [provider]", "Use the interface.\n");
 			f.commit(worker.path, "stub.ts", "export interface Stub {}\n");
 			propose("children/provider", "stage: ready\npart-of: root\nassignee: agent:shell", "Implement the interface.\n");
 			propose("parent", "stage: null");
@@ -100,6 +100,7 @@ for (const mode of modes.filter(m => !selected || selected === m)) {
 				assert.equal(f.git(f.cwd, "log", "--diff-filter=A", "--format=%s", "--", "docs/issues/" + slug + ".md"), "tracker: create " + slug);
 			}
 			assert.deepEqual(f.tracker.fields("consumer")["blocked-by"], ["provider"]);
+			assert.equal(f.tracker.fields("consumer").priority, 4);
 			assert.deepEqual(f.git(f.collector, "log", "--format=%s", base + "..HEAD").split("\n"), ["stub.ts"]);
 			assert.equal(f.git(f.collector, "show", "HEAD:stub.ts"), "export interface Stub {}");
 			assert.equal(f.git(f.collector, "log", "--format=%H", "HEAD", "--", ".reconcile/proposal"), "");

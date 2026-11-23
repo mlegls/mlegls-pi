@@ -103,7 +103,8 @@ export function readProposal(cwd: string, tracker: Tracker, node: string, root: 
 		requireProposal(isDeepStrictEqual(fields, JSON.parse(JSON.stringify(fields))), "frontmatter must be JSON-compatible: " + path);
 		const isParent = !alias;
 		for (const key of Object.keys(fields)) requireProposal(!key.startsWith("$") && !["github", "github-comments", "github-types", "claimed-by", "next", "__proto__"].includes(key), "reserved field " + key);
-		requireProposal(fields.priority == null || typeof fields.priority === "number" && [1, 2, 3].includes(fields.priority), "priority must be 1, 2 or 3");
+		const priorities = tracker.githubIssue ? [1, 2, 3] : [1, 2, 3, 4];
+		requireProposal(fields.priority == null || typeof fields.priority === "number" && priorities.includes(fields.priority), "priority must be one of " + priorities.join(", "));
 		requireProposal(fields.drive == null || fields.drive === "none" || fields.drive === "always", "invalid drive");
 		requireProposal(fields.decompose == null || typeof fields.decompose === "boolean", "invalid decompose");
 		requireProposal(!("title" in fields) || typeof fields.title === "string" && fields.title.trim(), "empty title");
