@@ -7,9 +7,11 @@ import { startDoctor } from "../../lib/doctor-start.ts";
 import { campaigns, start } from "../../lib/reconcile/main";
 import { ensureWatcher, loadPickup } from "../../lib/reconcile/pickup";
 import { childSession } from "../../lib/session/jump";
+import { wakeAfterProcessRelease } from "./process-release";
 
 export default function (pi: ExtensionAPI) {
 	localCompletions(pi);
+	wakeAfterProcessRelease(pi);
 	pi.on("context", (event) => {
 		const messages = withoutNotices(event.messages);
 		return messages ? { messages } : undefined;
