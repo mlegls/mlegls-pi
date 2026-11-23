@@ -1,5 +1,5 @@
 ---
-stage: "ready"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_rcfdcp7u7t"
@@ -26,3 +26,38 @@ At the join after [[projects/mlegls-pi/issues/github-tracker-atomic-refinement-c
 ## check
 
 An offline replay against a real vault tracker (pattern: other `docs/attachments/*/replay.ts`): a refine worker proposes two children and an interface commit; before acceptance the tracker has neither child; the reconciler is SIGKILLed after creating the first child and restarted; afterwards both children exist exactly once with `claimed-by: reconcile:<root>`, the interface commit is on the collector, and no proposal file landed. A stopped attempt leaves the tracker byte-identical. A promotion sets `decompose: false` and goes to implement as before. refinement.ts is substantially smaller.
+
+## Result
+
+done — merged both histories, repaired vault priority handling, and verified acceptance and crash recovery on both trackers. Typecheck and all 77 requested tests passed.
+
+```yaml
+commit: 67e29fe5
+stories:
+  - story: Vault acceptance survives SIGKILL after the first create; both children appear once with stable claims, and only the interface lands.
+    outcome: held
+  - story: Stopping an unaccepted refinement leaves the tracker byte-identical.
+    outcome: held
+  - story: An answered promotion sets decompose to false and launches implement from the unchanged collector.
+    outcome: held
+  - story: GitHub recovers a lost create response, creating gh-2 and gh-3 exactly once with gh-3 blocked by gh-2.
+    outcome: held
+  - story: Provisional fields and phases are gone; neither Concept nor mlegls-pi has a nonterminal legacy attempt.
+    outcome: held
+evidence:
+  path: docs/attachments/refinement-creates-children-atomically-on-acceptance/index.md
+  visual: false
+  shots: []
+fixed:
+  - "78ce1585: proposal validation now preserves vault priority 4 while enforcing GitHub's 1–3 range."
+changes:
+  - "7dc88b70: proposals and vault issues use the same slug and wikilink grammar."
+tests:
+  - lib/reconcile/refinement.test.ts
+filed: []
+caveats:
+  - Drive was skipped. Review ran both offline tracker replays; GitHub used fake-gh.
+  - The test merge kept the acceptance-recovery assertions; the collector's fixture edit applied only to the removed provisional-cleanup case.
+```
+
+Evidence: [docs/attachments/refinement-creates-children-atomically-on-acceptance/index.md](../attachments/refinement-creates-children-atomically-on-acceptance/index.md)
