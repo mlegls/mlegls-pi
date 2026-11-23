@@ -108,6 +108,7 @@ export function readProposal(cwd: string, tracker: Tracker, node: string, root: 
 		requireProposal(fields.decompose == null || typeof fields.decompose === "boolean", "invalid decompose");
 		requireProposal(!("title" in fields) || typeof fields.title === "string" && fields.title.trim(), "empty title");
 		requireProposal(fields.stage == null || fields.stage === "ready", "stage must be ready");
+		requireProposal(fields.assignee == null || parseAssignee(fields.assignee)?.kind === "agent", "invalid agent assignee");
 		if (fields["blocked-by"] != null) {
 			requireProposal(Array.isArray(fields["blocked-by"]), "blocked-by must be a list");
 			fields["blocked-by"] = fields["blocked-by"].map(b => typeof b === "string" && GUARD_PATTERN.test(b) ? b : relation(b));
@@ -156,7 +157,7 @@ export function readProposal(cwd: string, tracker: Tracker, node: string, root: 
 		if (row.closed) return;
 		const sub = kids.get(id) ?? [];
 		requireProposal(row.stage === "ready" || row.stage === null && sub.length, "missing ready residual or children: " + id);
-		if (children.has(id) || row.stage || row.assignee || tracker.githubIssue) requireProposal(parseAssignee(row.assignee)?.kind === "agent" || id === root && !row.assignee, "not agent-assigned: " + id);
+		if (children.has(id) || row.stage || row.assignee || tracker.githubIssue) requireProposal(parseAssignee(row.assignee)?.kind === "agent" || id === root && !row.assignee && !tracker.githubIssue, "not agent-assigned: " + id);
 		requireProposal(!rows.get(id)?.claims.some(c => c.claimedBy !== "reconcile:" + root), "foreign claim on " + id);
 		for (const kid of sub) validateScope(kid);
 	};
