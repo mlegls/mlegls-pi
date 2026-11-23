@@ -76,9 +76,12 @@ async function writeDesk(cwd: string, change: (files: Files, live: Set<string>) 
 		const exclude = join(common, "info", "exclude");
 		mkdirSync(dirname(exclude), { recursive: true });
 		const excluded = read(exclude);
-		if (!excluded.split(/\r?\n/).includes("/desk/"))
+		// lib/reconcile/status.ts may have excluded it first, as desk/.
+		if (!/^\/?desk\/?\r?$/m.test(excluded))
 			writeFileSync(exclude, excluded + (excluded && !excluded.endsWith("\n") ? "\n" : "") + "/desk/\n");
-		const roles = files.roles.join("\n").trim() || "# Roles";
+		// Rows are re-joined under the heading, so blank lines read from the file don't accumulate.
+		const [heading = "# Roles", ...rows] = files.roles.filter(row => row.trim());
+		const roles = heading + (rows.length ? "\n\n" + rows.join("\n") : "");
 		const items = files.items.map(item => item.trim()).filter(Boolean);
 		for (const [name, content] of [
 			["ROLES.md", roles + "\n"],
