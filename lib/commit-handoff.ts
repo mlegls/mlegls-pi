@@ -2,7 +2,8 @@ import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 
-export const commitIds = (text: string): string[] => [...new Set(text.match(/\b[0-9a-f]{7,40}\b/g) ?? [])];
+// All-digit tokens are dates and counts far more often than abbreviated hashes.
+export const commitIds = (text: string): string[] => [...new Set((text.match(/\b[0-9a-f]{7,40}\b/g) ?? []).filter(id => /[a-f]/.test(id)))];
 export const expandCheckout = (path: string): string => path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
 export function containsCommit(cwd: string, commit: string): boolean {
 	try {

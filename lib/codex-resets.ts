@@ -87,11 +87,23 @@ export async function redeemReset(auth: CodexAuth, exhausted: ResetWindow[], cre
 		return false;
 	}
 
-	let code: string;
+	let code: string, transient = false;
 	try {
 		// codex-rs/backend-client/src/client/rate_limit_resets.rs (account/rateLimitResetCredit/consume).
 		({ code } = await request(auth, { redeem_request_id: ids[0], credit_id: credit.id }));
-	} catch (error) { code = (error as Error).message; }
+	} catch (error) {
+		code = (error as Error).message;
+		transient = !code.startsWith("HTTP 4") || code === "HTTP 429";
+	}
+	if (transient) {
+		// No answer (network, timeout, 429, 5xx): release the claim so a later launch retries. The request ID is
+		// the idempotency key, so a retry can't redeem a second credit for the same windows.
+		for (const file of claimed) {
+			try { rmSync(file, { force: true }); } catch {}
+		}
+		console.error("allocation: Codex reset request failed, will retry: " + code);
+		return false;
+	}
 	const label = exhausted.map(w => `${w.id} (${new Date(w.resetsAt).toISOString()})`).join(", ");
 	const result = JSON.stringify({ ...attempt, code, ...(code === "reset" && { redeemedAt: Date.now() }) });
 	for (const file of claimed) {
