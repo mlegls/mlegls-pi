@@ -1,30 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { liveProcessStatus, processReceipts, type ProcessReceipt } from "../../lib/thread/process";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { spawnDetached } from "../../lib/reconcile/process";
 import { isRetired } from "../../lib/session-meta/live";
 import { pidAlive } from "../../lib/wm";
 
-interface ProcessReceipt {
-	id: string;
-	name: string;
-	status: string;
-	endTime: number | null;
-	exitCode: number | null;
-	interruption?: string;
-}
-
 function receipts(dir: string): ProcessReceipt[] {
-	try {
-		const registry = JSON.parse(readFileSync(join(dir, "registry.json"), "utf8"));
-		return registry.version === 1 && Array.isArray(registry.records)
-			? registry.records.map((record: { info?: ProcessReceipt }) => record?.info).filter((info?: ProcessReceipt) => info?.id && info?.name)
-			: [];
-	} catch { return []; }
+	return processReceipts(dir)?.filter((p): p is ProcessReceipt => !!p?.id && !!p.name) ?? [];
 }
-
-const live = (p: ProcessReceipt) => ["running", "terminating", "terminate_timeout"].includes(p.status);
 
 export function wakeAfterProcessRelease(pi: ExtensionAPI): void {
 	const thread = process.env.BB_THREAD_ID;
@@ -42,7 +26,7 @@ export function wakeAfterProcessRelease(pi: ExtensionAPI): void {
 		if (!file) return;
 		const dir = file + ".processes";
 		// This hook can run on either side of pi-processes' cleanup hook.
-		const pending = receipts(dir).filter(p => live(p) ||
+		const pending = receipts(dir).filter(p => liveProcessStatus(p.status) ||
 			(p.status === "killed" && !!p.interruption && (p.endTime ?? 0) >= started));
 		if (!pending.length) return;
 		spawnDetached(["bun", import.meta.path, String(process.pid), thread, dir, JSON.stringify(pending)], ctx.cwd, join(dir, "release-wake.log"));

@@ -19,15 +19,30 @@ export function executable(name: string): string {
 	throw new Error("Executable not found on PATH: " + name);
 }
 
+export interface ProcessReceipt {
+	id: string;
+	name: string;
+	status: string;
+	endTime: number | null;
+	exitCode: number | null;
+	interruption?: string;
+}
+
+export function processReceipts(dir: string, missingMeansEmpty = false): (ProcessReceipt | undefined)[] | undefined {
+	try {
+		const registry = JSON.parse(readFileSync(join(dir, "registry.json"), "utf8"));
+		if (registry.version === 1 && Array.isArray(registry.records)) return registry.records.map((r: { info?: ProcessReceipt }) => r?.info);
+	} catch (e) { if (missingMeansEmpty && (e as NodeJS.ErrnoException).code === "ENOENT") return []; }
+}
+
+export const liveProcessStatus = (status?: string) => status === "running" || status === "terminating" || status === "terminate_timeout";
+
 /** Read the session receipt, not the group leader's PID: the manager can still be waiting on its descendants. */
 export function managedProcess(sessionFile: string, missingMeansEmpty = false): boolean | undefined {
-	try {
-		const registry = JSON.parse(readFileSync(join(sessionFile + ".processes", "registry.json"), "utf8"));
-		if (registry.version !== 1 || !Array.isArray(registry.records)) return undefined;
-		const statuses: (string | undefined)[] = registry.records.map((r: { info?: { status?: string } }) => r?.info?.status);
-		if (statuses.some(status => status === "running" || status === "terminating" || status === "terminate_timeout")) return true;
-		return statuses.every(status => status === "exited" || status === "killed") ? false : undefined;
-	} catch (e) { return missingMeansEmpty && (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
+	const statuses = processReceipts(sessionFile + ".processes", missingMeansEmpty)?.map(info => info?.status);
+	if (!statuses) return undefined;
+	if (statuses.some(liveProcessStatus)) return true;
+	return statuses.every(status => status === "exited" || status === "killed") ? false : undefined;
 }
 
 export const quote = (text: string): string => "'" + text.replaceAll("'", "'\"'\"'") + "'";

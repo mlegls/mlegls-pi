@@ -35,3 +35,9 @@ The cleanup command completed. No unresolved friction. For replay, check the par
 - Pi quit and the watcher PID exited. The receipt changed to `killed`: “Stopped when the Pi runtime shut down.” BB received the automatic notice (event 29) and started a new turn (event 32) in a new Pi process on the same thread. Its reply was `ack`. The fixture thread was stopped and archived after the check.
 - On the same checkout the [offline guard replay](../guard-refuses-promised-wakes-with-no-live-process/index.md) refused the promise once with no live watcher and let the repeated turn end. With a live watcher it let the same promise stand.
 - The [active Stop run](../released-pi-runtime-wakes-threads-with-live-watchers/index.md#active-stop--held) in the release ticket remains the paired control: interrupting a running turn did not wake it. The joined run uses idle Stop rather than waiting 30 minutes for lease expiry.
+
+## Join review
+
+The guard and the release hook read the same pi-processes registry. They now share its version check, record reader and definition of a live status. The guard still distinguishes an unknown receipt from an empty one; the release hook still requires a process ID and name to report an outcome.
+
+Before and after consolidation, `bun test extensions/guard/index.test.ts lib/reconcile/exceptions.test.ts` passed all 11 cases and both offline guard replay modes held. A temporary registry read back the same watcher's name while running and its interruption after it was killed. The independent BB drive above remains the end-to-end delivery check.
