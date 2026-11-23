@@ -25,3 +25,11 @@ bun docs/attachments/visual-review-only-for-changes-that-render-something-new/re
 The join's role filter was unobservable: the CLI reports launches, not the join's required roles. To check that separately, observe the join's effective role selection for the same two inputs; accept `tidy` alone for recordings and `tidy` plus `visual-reviewer` for CSS. The replay also doesn't show what the ordinary reviewer opens.
 
 The CLI entry points worked without extra setup. This was a routing check, with no rendered UI journey or screenshots.
+
+## Review (review-3)
+
+Read at `e205216b` against the diff. `bun test lib/reconcile/review-routing.test.ts` passes (26s; both replays).
+
+- Join rule, by reading `lib/reconcile/reconcile.ts` startPhase: a join's review gets `only = ["tidy", "visual-reviewer"]` when the same `visual` test holds (visual evidence, a `visual-reviewer` stance, `touchesRenderedSurface(c.base, head)`), else `["tidy"]`. Non-join reviews are pinned to `reviewer` or `visual-reviewer`, so the stance picker no longer runs for them.
+- The ordinary reviewer gets the driver's handoff, shots included, and its review contract says to open the images of a visual packet.
+- Concept had no `.pi/reconcile.json`, so with this change alone every Concept review would have gone to `reviewer`, including the UI diffs where visual review caught defects. Concept `5fdbb4d4c5` commits the ticket's paths. Old backends ignore `renderedPaths` and treat a file without `land` as local landing, same as no file.
