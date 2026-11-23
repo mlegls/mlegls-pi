@@ -12,19 +12,27 @@ const git = (cwd: string, ...args: string[]) => {
 
 // A reconciler's state (lib/reconcile, <git-common-dir>/reconcile/<root>.json) names every node it is
 // carrying; unfinished state whose pid is gone is a stalled run nothing advances.
-interface Run { root: string; cwd?: string; land?: string; target?: string; pr?: { path: string; repository: string; baseBranch: string; phase: string; url?: string }; landed?: Record<string, { into: string; head: string; at: string }>; pid?: number; finished?: string; chains?: Record<string, { phase: string; held?: boolean; handle?: { handle?: string } }> }
+interface Run { root: string; ownerSession?: string; workerSessions?: Record<string, string>; cwd?: string; land?: string; target?: string; pr?: { path: string; repository: string; baseBranch: string; phase: string; url?: string }; landed?: Record<string, { into: string; head: string; at: string }>; pid?: number; finished?: string; chains?: Record<string, { phase: string; held?: boolean; handle?: { handle?: string } }> }
 
-function runs(common: string): Run[] {
+export function reconcileRuns(common: string): Run[] {
   const d = join(common, "reconcile");
   if (!existsSync(d)) return [];
   const out: Run[] = [];
   for (const n of readdirSync(d)) {
     if (!n.endsWith(".json")) continue;
-    try { out.push(JSON.parse(readFileSync(join(d, n), "utf8")) as Run); } catch {}
+    try {
+      const r = JSON.parse(readFileSync(join(d, n), "utf8")) as Run;
+      if (r?.root && n === r.root + ".json") out.push(r);
+    } catch {}
   }
   return out;
 }
-const alive = (pid?: number) => { try { if (pid) { process.kill(pid, 0); return true; } } catch {} return false; };
+export function reconcilerAlive(r: Run): boolean {
+  const { pid } = r;
+  if (r.finished || pid === undefined || !Number.isSafeInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; }
+  catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
+}
 
 export function inflight(issuesDir: string, done: (slug: string) => boolean): Map<string, string[]> {
   const found = new Map<string, string[]>();
@@ -39,9 +47,9 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
   const main = trees[0];
   if (!main?.head) return found;
 
-  for (const r of runs(common)) {
+  for (const r of reconcileRuns(common)) {
     if (r.finished) continue;
-    const how = alive(r.pid) ? "" : " (stalled: reconciler for " + r.root + " not running)";
+    const how = reconcilerAlive(r) ? "" : " (stalled: reconciler for " + r.root + " not running)";
     const pr = (r.land ?? "local") !== "local" ? r.pr : undefined;
     const target = r.target ?? (pr ? "github:" + pr.repository + ":" + pr.baseBranch : r.cwd);
     const prStatus = pr ? " (" + r.land + ", " + pr.phase + (pr.url ? ", " + pr.url : "") + ", target " + target + ")" : "";

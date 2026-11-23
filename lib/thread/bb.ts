@@ -1,7 +1,7 @@
 // BB owns the threads and runs their providers. The worktree, setup and integration stay here.
 import { Database } from "bun:sqlite";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { command, delay } from "./process";
@@ -181,13 +181,38 @@ function bbDb<T>(f: (db: Database) => T): T | undefined {
 
 /** One pi session bb ran for a thread; a rewind starts a new one, so a thread can have several (latest: newest `at`). */
 export interface BbSession { thread: string; parent?: string; title?: string; provider: string; file: string; at: number }
-/** Every pi session bb has run, from its thread/identity events. */
-export function bbSessions(): BbSession[] {
-	return bbDb(db => db.query(`select e.thread_id thread, e.provider_thread_id provider, t.parent_thread_id parent, coalesce(t.title, t.title_fallback) title, max(e.created_at) at
+function bbSessionRows(db: Database, openOnly = false) {
+	return db.query(`select e.thread_id thread, e.provider_thread_id provider, t.parent_thread_id parent, coalesce(t.title, t.title_fallback) title, max(e.created_at) at
 		from events e join threads t on t.id = e.thread_id
 		where e.type = 'thread/identity' and e.provider_thread_id is not null and t.deleted_at is null
-		group by e.thread_id, e.provider_thread_id`).all() as any[])
+		${openOnly ? "and t.archived_at is null and t.provider_id = 'pi'" : ""}
+		group by e.thread_id, e.provider_thread_id`).all() as { thread: string; parent: string | null; title: string | null; provider: string; at: number }[];
+}
+
+/** Every pi session bb has run, from its thread/identity events. */
+export function bbSessions(): BbSession[] {
+	return bbDb(db => bbSessionRows(db))
 		?.map(r => ({ thread: r.thread, parent: r.parent ?? undefined, title: r.title ?? undefined, provider: r.provider, file: providerFile(r.provider), at: r.at })) ?? [];
+}
+
+/** Open threads still hold claims when BB releases their Pi process. Undefined if the local BB store is unavailable. */
+export function bbClaimHolders(): Set<string> | undefined {
+	return bbDb(db => {
+		const threads = db.query<{ id: string }, []>("select id from threads where archived_at is null and deleted_at is null").all();
+		const ids = new Set(threads.map(t => t.id));
+		const buf = Buffer.alloc(4096);
+		for (const { provider } of bbSessionRows(db, true)) {
+			ids.add(provider); // Older BB used the Pi session id as its provider thread id.
+			try {
+				const fd = openSync(providerFile(provider), "r");
+				try {
+					const head = JSON.parse(buf.toString("utf8", 0, readSync(fd, buf, 0, buf.length, 0)).split("\n", 1)[0]);
+					if (head.type === "session" && typeof head.id === "string") ids.add(head.id);
+				} finally { closeSync(fd); }
+			} catch { /* The provider's transcript can be missing on this host. */ }
+		}
+		return ids;
+	});
 }
 
 /** What the maintainer typed into bb threads (bb's prompt history), with the thread's project checkout. */
