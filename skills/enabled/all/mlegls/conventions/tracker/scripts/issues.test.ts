@@ -588,7 +588,7 @@ test("work in flight elsewhere leaves the frontier: roots, pending ledgers, work
   expect(claim("watched")).toBe("reconciling drive by watched-drive (held)");
   expect(claim("stalled")).toContain("reconciling drive by stalled-drive (held) (stalled: reconciler for dead not running)");
   expect(claim("stalled")).toContain("landed in owner checkout (awaiting close) (stalled: reconciler for dead not running)");
-  expect(claim("sent")).toContain("dispatched fedcba987654 (root, +1)");
+  expect(claim("sent")).toContain("dispatched w as fedcba987654 (root, +1)");
   expect(snap.filter((i: any) => i.frontier).map((i: any) => i.slug).sort()).toEqual(["finished"]);
   const off = JSON.parse(Bun.spawnSync([process.execPath, cli, "snapshot", "--json"], { cwd: dir, env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } }).stdout.toString()).issues;
   expect(off.filter((i: any) => i.frontier).length).toBe(7);
