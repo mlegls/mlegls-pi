@@ -17,7 +17,7 @@ From a checkout containing this change, run `mise run setup`, then:
 - `bun docs/attachments/probe-conflicts-and-prepare-deps-around-integrate/fixture.ts conflict`
 - `bun docs/attachments/probe-conflicts-and-prepare-deps-around-integrate/fixture.ts deps`
 
-Each command lands directly on the relevant backend journey and prints a `RESULT` JSON record. Additional modes are `setup` (fallback) and `unchanged` (no dependency-input change).
+Each command runs the real reconciler against disposable Git worktrees and a fake BB worker registry, then prints `RESULT`. `conflict` now supplies a handler's mechanical merge, `format` supplies a target-tip formatter commit, and `code-repair` supplies a handler edit to reviewed code. Compare `handlers`, `reviews`, `started`, `reviewHead` and `landed`. Additional dependency modes are `setup` (fallback) and `unchanged` (no dependency-input change).
 
 ## Observed
 
