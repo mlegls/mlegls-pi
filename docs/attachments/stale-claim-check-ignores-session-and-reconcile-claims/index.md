@@ -23,3 +23,13 @@ Run the entry point above. The stale set in `tree` and `check` should be identic
 
 No tooling friction encountered.
 
+
+## Review
+
+Reviewed `6e253b30..c8abc5e5` (`c6480501` is this ticket's code; the rest are merged siblings). Reran the entry point on the review head: same output as the encounter above, exit 0. The tracker, session-meta and BB thread tests pass (52 tests).
+
+On this repository's real tracker, `check` reports one stale claim: `pi-settlement-identity-fails-after-done` held by `session:01a1595d-3077-73bf-a6ff-1379103911af`. No BB or Pi session transcript has that session id in its header; it appears only quoted in the supervisor's transcript. So the verdict looks right.
+
+Cost: the BB lookup runs only when a session claim has no worktree, run or live Pi owner. It adds about 1.5 s to `check` or `tree` (2.6 s here, against 1.0 s with `BB_DATA_DIR` pointing nowhere). Almost all of that is `bbDataDir()` spawning `bb status --json`. Given the data dir, the query and transcript-header reads take 19 ms for 153 holders.
+
+No repairs.
