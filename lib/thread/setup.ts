@@ -1,5 +1,5 @@
 import { execFile, execFileSync, spawn } from "node:child_process";
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { transientNetworkError, networkRetryDelay } from "../retry";
 import { launchEnv } from "./launch";
@@ -14,15 +14,12 @@ export function declaresSetup(cwd: string): Promise<boolean> {
 }
 
 /** How a worker's worktree setup stands, in .wm/setup.json beside the worktree (with its output in .wm/setup.log). */
-export type SetupStatus =
+type SetupStatus =
 	| { state: "running"; pid: number; log: string }
 	| { state: "done"; code: number | null; log: string };
 
 const file = (cwd: string) => join(cwd, ".wm", "setup.json");
 export const setupLog = (cwd: string) => join(cwd, ".wm", "setup.log");
-export function readSetup(cwd: string): SetupStatus | undefined {
-	try { return existsSync(file(cwd)) ? JSON.parse(readFileSync(file(cwd), "utf8")) : undefined; } catch { return undefined; }
-}
 const writeSetup = (cwd: string, status: SetupStatus) => writeFileSync(file(cwd), JSON.stringify(status));
 
 const unmerged = (cwd: string) => { try { return !!execFileSync("git", ["-C", cwd, "diff", "--name-only", "--diff-filter=U"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return false; } };
@@ -38,6 +35,7 @@ export async function runSetup(thread: WorkerCheckout): Promise<void> {
 	const log = setupLog(thread.cwd);
 	writeFileSync(log, "");
 	const out = openSync(log, "a");
+	let finished = false;
 	try {
 		for (let attempt = 0; ; attempt++) {
 			const offset = statSync(log).size;
@@ -55,11 +53,12 @@ export async function runSetup(thread: WorkerCheckout): Promise<void> {
 				continue;
 			}
 			writeSetup(thread.cwd, { state: "done", code, log });
+			finished = true;
 			if (code !== 0) throw new Error("Worker setup failed: " + code + " (see " + log + ")");
 			return;
 		}
 	} catch (error) {
-		if (readSetup(thread.cwd)?.state !== "done") writeSetup(thread.cwd, { state: "done", code: -1, log });
+		if (!finished) writeSetup(thread.cwd, { state: "done", code: -1, log });
 		throw error;
 	} finally { closeSync(out); }
 }

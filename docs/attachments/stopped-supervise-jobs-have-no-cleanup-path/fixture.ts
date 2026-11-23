@@ -40,9 +40,9 @@ export async function prepare(): Promise<Fixture> {
 	try {
 		for (const handle of ["implement", "handler", "launch-race"]) {
 			const w = await spawn({ cwd: handle === "handler" ? collector : cwd, run: "fixture", handle, prompt: "Stop fixture", model: "fake/model", effort: "low" });
-			f.workers.push({ receipt: { run: w.run, handle: w.handle, path: w.dir, bb: w.bb }, branch: w.branch }); save();
-			writeFileSync(join(w.dir, handle + ".txt"), "unmerged " + handle + "\n");
-			git(w.dir, "add", "."); git(w.dir, "commit", "-qm", handle);
+			f.workers.push({ receipt: { ...w.worker, path: w.cwd, bb: w.id }, branch: w.branch }); save();
+			writeFileSync(join(w.cwd, handle + ".txt"), "unmerged " + handle + "\n");
+			git(w.cwd, "add", "."); git(w.cwd, "commit", "-qm", handle);
 		}
 		const [implement, handler] = f.workers.map(w => w.receipt);
 		const leftover = Bun.spawn(["sleep", "600"], { cwd: implement.path, stdio: ["ignore", "ignore", "ignore"] });

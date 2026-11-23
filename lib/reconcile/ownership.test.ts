@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { handover } from "../handover";
 import { byRole } from "../agents";
 import * as wm from "../wm";
+import { abandonThread, type WorkerThread } from "../thread";
 import * as bb from "../thread/bb";
 import { protocolFixture } from "./protocol-fixture";
 import { load, run } from "./reconcile";
@@ -14,7 +15,7 @@ test("concurrent reconciler launches prepare outside ownership, retry live conte
 	const here = process.cwd(), f = protocolFixture();
 	const roots = Array.from({ length: 10 }, (_, n) => "launch-" + n);
 	const gate = Promise.withResolvers<void>(), created = Promise.withResolvers<void>();
-	const workers: wm.Worker[] = [], running: Promise<unknown>[] = [], abort = new AbortController();
+	const workers: WorkerThread[] = [], running: Promise<unknown>[] = [], abort = new AbortController();
 	const signals = ["exit", "SIGTERM", "SIGINT", "SIGHUP"] as const;
 	const listeners = signals.map(signal => [signal, new Set(process.listeners(signal))] as const);
 	const now = Date.now, spawn = wm.spawn, spawnBb = bb.spawnBb;
@@ -102,7 +103,7 @@ test("concurrent reconciler launches prepare outside ownership, retry live conte
 		await takingOver;
 		await Promise.allSettled(running);
 		slowPrepare.mockRestore(); slowCreation.mockRestore(); logs.mockRestore();
-		for (const worker of workers) await worker.close();
+		for (const worker of workers) await abandonThread(worker.id);
 		for (const [signal, prior] of listeners)
 			for (const listener of process.listeners(signal)) if (!prior.has(listener)) process.removeListener(signal, listener);
 		process.chdir(here);

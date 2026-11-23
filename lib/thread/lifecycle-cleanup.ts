@@ -17,9 +17,11 @@ export async function stopThreadProcesses(thread: WorkerThread): Promise<ThreadC
 	return cleanupThread(thread, true, true);
 }
 
+type KeepBranch = boolean | "unmerged";
+
 /** Retirement discards ignored state (local deployments, captures, scratch, process logs): what a later phase or the
  * owner needs is saved explicitly, committed (docs/attachments) or named in the tracker (maintainer, 2026-10-29). */
-export async function retireThread(thread: WorkerThread, keepBranch: boolean): Promise<ThreadCleanup> {
+export async function retireThread(thread: WorkerThread, keepBranch: KeepBranch): Promise<ThreadCleanup> {
 	return cleanupThread(thread, keepBranch, false);
 }
 
@@ -33,7 +35,15 @@ async function commitWip(root: string, thread: WorkerThread): Promise<string | u
 	return gitChecked(root, "rev-parse", "--short", "HEAD");
 }
 
-async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processesOnly: boolean): Promise<ThreadCleanup> {
+/** Keep patches that haven't landed in the recorded parent, including after a rebase rewrites their commits. */
+async function unmergedReason({ project, branch }: WorkerThread): Promise<string | undefined> {
+	const parent = await gitAttempt(project, "config", "--get", "branch." + branch + ".ab-parent");
+	if (parent.code || !parent.out) return "missing ab-parent";
+	const cherry = await gitAttempt(project, "cherry", parent.out, branch);
+	if (cherry.code || cherry.out.split("\n").some(line => line.startsWith("+"))) return cherry.err || "not merged into " + parent.out;
+}
+
+async function cleanupThread(thread: WorkerThread, keepBranch: KeepBranch, processesOnly: boolean): Promise<ThreadCleanup> {
 	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
 	let root = resolve(thread.worktree);
 	if (root === "/" || root === resolve(thread.project)) throw new Error("Refusing to remove main checkout: " + root);
@@ -86,8 +96,10 @@ async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processe
 	// evidence (recordings of paid live draws, write-ups) was untracked and went with its worktree (2026-10-12).
 	const wip = listed ? await commitWip(root, thread) : undefined;
 	if (listed) await gitChecked(thread.project, "worktree", "remove", "--force", root);
-	if (wip) result.branchesKept.push({ branch: thread.branch, reason: "uncommitted work saved as WIP commit " + wip });
-	else if (keepBranch) result.branchesKept.push({ branch: thread.branch, reason: "keepBranch requested" });
+	const reason = wip ? "uncommitted work saved as WIP commit " + wip
+		: keepBranch === true ? "keepBranch requested"
+		: keepBranch === "unmerged" ? await unmergedReason(thread) : undefined;
+	if (reason) result.branchesKept.push({ branch: thread.branch, reason });
 	else {
 		const deleted = await gitAttempt(thread.project, "branch", "-D", thread.branch);
 		if (deleted.code) result.branchesKept.push({ branch: thread.branch, reason: deleted.err || deleted.out });

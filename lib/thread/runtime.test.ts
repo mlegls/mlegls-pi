@@ -3,7 +3,6 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { bbThreads, bbWorkerThread, tellBb, tellBbFolded } from "./bb";
-import { readSetup } from "./setup";
 import { historyThread, newThread, workerOf } from "./runtime";
 import { fakeBb } from "./fake-bb";
 
@@ -38,7 +37,7 @@ test("a worker sets up once, send reaches the bb thread literally, and bb finds 
 	expect(owner).toMatchObject({ branch: "owner", cwd: join(repo + "__worktrees", "owner") });
 	expect(git(repo, "config", "branch.owner.ab-parent")).toBe("main");
 	expect(readFileSync(join(owner.cwd, "setup-marker"), "utf8")).toBe("setup\n");
-	expect(readSetup(owner.cwd)).toMatchObject({ state: "done", code: 0 });
+	expect(JSON.parse(readFileSync(join(owner.cwd, ".wm", "setup.json"), "utf8"))).toMatchObject({ state: "done", code: 0 });
 
 	// The worker is one bb thread in its own environment; its pi starts in its worktree.
 	expect(bb.threads().map(t => t.environment)).toEqual([owner.cwd]);

@@ -3,7 +3,8 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fakeBb, threads } from "../thread/fake-bb";
-import { merge, spawn, type Worker } from "../wm";
+import { spawn } from "../wm";
+import { abandonThread, integrateThread, type WorkerThread } from "../thread";
 import { getTracker } from "../tracker";
 import { refreshWorker } from "./refresh";
 import { git as reconcilerGit } from "./checks";
@@ -41,7 +42,7 @@ test("successor merge suppresses diffstat and reconciler git accepts output abov
 // Workers on a fake bb CLI exercise the real checkout/setup/launch seam; no daemon, model or paid API.
 test("an integrated handler ruling reaches a successor before setup and launch, keeping predecessor work", async () => {
 	const root = realpathSync(mkdtempSync("/tmp/rc-test-")), repo = join(root, "repo");
-	const saved = { ...process.env }, workers: Worker[] = [];
+	const saved = { ...process.env }, workers: WorkerThread[] = [];
 	const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 	const ticket = "docs/issues/measure.md", ruling = "Done: offline packet audit; no paid inference\nStories: measurement claims\n";
 	const cli = realpathSync(join(import.meta.dir, "../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"));
@@ -68,26 +69,26 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 			return worker;
 		};
 		const previous = await fixture("previous");
-		const previousHead = commit(previous.dir, "result.txt", "retained packet\n");
+		const previousHead = commit(previous.cwd, "result.txt", "retained packet\n");
 		const handler = await fixture("handler");
-		getTracker(handler.dir, { inflight: false }).update("measure", { drive: "none" }, ruling);
-		commit(handler.dir, "handler-artifact.txt", "offline ruling artifact\n");
-		await merge(handler);
+		getTracker(handler.cwd, { inflight: false }).update("measure", { drive: "none" }, ruling);
+		commit(handler.cwd, "handler-artifact.txt", "offline ruling artifact\n");
+		await integrateThread(handler.id);
 		const decision = git(repo, "rev-parse", "HEAD");
 		const successor = await fixture("successor", previousHead, async cwd => {
 			refreshWorker(cwd, repo);
 			return getTracker(cwd, { inflight: false }).text("measure");
 		});
-		expect(git(successor.dir, "merge-base", "--is-ancestor", decision, "HEAD")).toBe("");
-		expect(git(successor.dir, "merge-base", "--is-ancestor", previousHead, "HEAD")).toBe("");
-		expect(readFileSync(join(successor.dir, "result.txt"), "utf8")).toBe("retained packet\n");
-		expect(readFileSync(join(successor.dir, "setup-contract"), "utf8")).toContain(ruling);
-		const prompt = threads(join(root, "fake-bb")).find(t => t.id === successor.bb)?.prompt;
+		expect(git(successor.cwd, "merge-base", "--is-ancestor", decision, "HEAD")).toBe("");
+		expect(git(successor.cwd, "merge-base", "--is-ancestor", previousHead, "HEAD")).toBe("");
+		expect(readFileSync(join(successor.cwd, "result.txt"), "utf8")).toBe("retained packet\n");
+		expect(readFileSync(join(successor.cwd, "setup-contract"), "utf8")).toContain(ruling);
+		const prompt = threads(join(root, "fake-bb")).find(t => t.id === successor.id)?.prompt;
 		expect(prompt).toContain(ruling.trim()); // bb gets the prompt trimmed
 		expect(prompt).not.toContain("old contract");
 		expect(git(repo, "config", "branch.successor.ab-parent")).toBe("main");
 	} finally {
-		try { await Promise.all(workers.map(worker => worker.close())); }
+		try { await Promise.all(workers.map(worker => abandonThread(worker.id))); }
 		finally { process.env = saved; rmSync(root, { recursive: true, force: true }); }
 	}
 }, 30_000);
