@@ -65,9 +65,12 @@ export function localCompletions(pi: ExtensionAPI) {
 		if (event.streamingBehavior || !ctx.model || !await reconcilerCompletion(event.text, ctx.cwd)) return;
 		const model = ctx.modelRegistry.find(PROVIDER, MODEL);
 		if (!model) return;
-		previous = { provider: ctx.model.provider, id: ctx.model.id, thinking: pi.getThinkingLevel() };
-		// Recovery if the process exits before agent_end restores the selection.
-		pi.appendEntry(RESTORE, previous);
+		// Still on the stand-in (agent_end hasn't restored yet): keep the real selection to restore.
+		if (ctx.model.provider !== PROVIDER) {
+			previous = { provider: ctx.model.provider, id: ctx.model.id, thinking: pi.getThinkingLevel() };
+			// Recovery if the process exits before agent_end restores the selection.
+			pi.appendEntry(RESTORE, previous);
+		}
 		await pi.setModel(model);
 	});
 	pi.on("agent_end", async (_event, ctx) => {
