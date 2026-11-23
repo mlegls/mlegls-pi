@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { spawnDetached } from "../../lib/reconcile/process";
+import { isRetired } from "../../lib/session-meta/live";
 import { pidAlive } from "../../lib/wm";
 
 interface ProcessReceipt {
@@ -35,6 +36,8 @@ export function wakeAfterProcessRelease(pi: ExtensionAPI): void {
 	pi.on("session_shutdown", (event, ctx) => {
 		// Stop of a running turn also reaches shutdown with isIdle() true, after Pi aborts the turn.
 		if (event.reason !== "quit" || !ctx.isIdle() || !settled) return;
+		// An owner retiring this worker (lib/thread/lifecycle-cleanup.ts) marks it before its idle Stop and kills what it ran.
+		if (isRetired({ pid: process.pid, sessionId: ctx.sessionManager.getSessionId() })) return;
 		const file = ctx.sessionManager.getSessionFile();
 		if (!file) return;
 		const dir = file + ".processes";

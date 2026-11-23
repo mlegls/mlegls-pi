@@ -47,13 +47,16 @@ export function markRetired(record: Pick<Live, "pid" | "sessionId">): void {
 	writeFileSync(retiredPath(record.pid), record.sessionId);
 }
 
+/** True if this process is being retired on purpose; the mark stays for the parent's monitor. */
+export function isRetired(record: Pick<Live, "pid" | "sessionId">): boolean {
+	try { return readFileSync(retiredPath(record.pid), "utf8") === record.sessionId; } catch { return false; }
+}
+
 /** True, and the mark consumed, if this exit was an announced retirement. */
 export function takeRetired(record: Pick<Live, "pid" | "sessionId">): boolean {
-	try {
-		const marked = readFileSync(retiredPath(record.pid), "utf8") === record.sessionId;
-		unlinkSync(retiredPath(record.pid));
-		return marked;
-	} catch { return false; }
+	const marked = isRetired(record);
+	try { unlinkSync(retiredPath(record.pid)); } catch {}
+	return marked;
 }
 
 /** Records whose process is still alive; stale ones are deleted on the way. */
