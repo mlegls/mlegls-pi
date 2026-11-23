@@ -17,7 +17,7 @@ if (mode === "clean" && path) {
 		bb("thread", "archive", id);
 		bb("thread", "stop", id);
 	} finally { trust.set(root, null); }
-} else if (mode === "release" || mode === "stop") {
+} else if (mode === "release" || mode === "promise" || mode === "stop") {
 	const project = process.env.BB_PROJECT_ID;
 	if (!project) throw new Error("Set BB_PROJECT_ID to the BB project for this checkout");
 	mkdirSync(scratch, { recursive: true });
@@ -26,15 +26,17 @@ if (mode === "clean" && path) {
 	mkdirSync(ext, { recursive: true });
 	const installedPackage = resolve(execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"],
 		{ cwd: repo, encoding: "utf8" }).trim(), "..");
-	// Run the candidate BB extension instead of the installed package; keep installed pi-processes.
+	// Load candidate extensions instead of the installed package; keep installed pi-processes.
 	writeFileSync(join(root, ".pi", "settings.json"), JSON.stringify({
 		packages: [{ source: installedPackage, extensions: [], skills: [], prompts: [], themes: [] }],
 	}));
 	writeFileSync(join(ext, "watcher-first-use.ts"), String.raw`
 import { appendFileSync } from "node:fs";
 import bb from ${JSON.stringify(join(repo, "extensions", "bb", "index.ts"))};
+import guard from ${JSON.stringify(join(repo, "extensions", "guard", "index.ts"))};
 export default function (pi) {
 	bb(pi);
+	if (${mode === "promise"}) guard(pi);
 	for (const name of ["session_start", "agent_settled", "session_shutdown"]) pi.on(name, (event, ctx) => {
 		const file = ctx.sessionManager.getSessionFile();
 		if (file) appendFileSync(ctx.cwd + "/runtime.jsonl", JSON.stringify({ name, pid: process.pid, file,
@@ -44,9 +46,10 @@ export default function (pi) {
 `);
 	trust.set(root, true);
 	const common = "This is a disposable BB lifecycle rehearsal. Use the process tool to start sleep 300 as watcher-first-use; do not set a readiness pattern.";
-	const prompt = mode === "release"
-		? common + " Do not wait for exit. End the turn with only ready. If a runtime release notice arrives, reply ack and leave all processes stopped."
-		: common + " Use one codemode invocation: await process start, then await process wait (action wait, id watcher-first-use, until exit, timeoutSeconds 180). Keep this turn running until the wait ends.";
+	const final = mode === "promise" ? "When the watcher finishes, I'll publish." : "ready";
+	const prompt = mode === "stop"
+		? common + " Use one codemode invocation: await process start, then await process wait (action wait, id watcher-first-use, until exit, timeoutSeconds 180). Keep this turn running until the wait ends."
+		: common + ` Do not wait for exit. End the turn with exactly this text: ${JSON.stringify(final)} If a runtime release notice arrives, reply ack and leave all processes stopped. Publishing is simulated; do not publish anything.`;
 	const owner = process.env.BB_THREAD_ID;
 	try {
 		const { id } = bb("thread", "spawn", "--project", project, "--environment", root, "--provider", "pi",
@@ -58,5 +61,5 @@ export default function (pi) {
 		console.log(JSON.stringify(setup));
 	} catch (error) { trust.set(root, null); throw error; }
 } else {
-	throw new Error("Use first-use.ts release | stop | clean <owned workspace>");
+	throw new Error("Use first-use.ts release | promise | stop | clean <owned workspace>");
 }
