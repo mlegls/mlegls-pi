@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { parseAssignee, type Assignee } from "./assignee.ts";
+import { parseAssignee } from "./assignee.ts";
 import type { Fields, Tracker, TrackerOptions } from "./tracker.ts";
 import type { GithubNode } from "./tracker-github.ts";
 import {
@@ -22,6 +22,14 @@ const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(valu
 		? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value)).digest("hex");
 const slugOf = (issue: GithubRelation) => "gh-" + issue.number;
 const guard = (value: unknown): value is string => typeof value === "string" && /^[a-z][a-z0-9-]*: \S/.test(value);
+type AssigneeRole = "ready-for-agent" | "ready-for-human";
+function assigneeRole(value: unknown): AssigneeRole | undefined {
+	if (value == null) return;
+	const parsed = parseAssignee(value);
+	requireGithub(parsed, "invalid assignee selector");
+	requireGithub(parsed.kind !== "session", "GitHub labels cannot represent the session selector " + value);
+	return parsed.kind === "agent" ? "ready-for-agent" : "ready-for-human";
+}
 const stable = (run: GlobalRunState) => "reconcile:" + run.root;
 const attempt = (run: GlobalRunState, token: unknown) => Object.values(run.refinements).find(value => value.claim === token && value.claim === stable(run) + "/" + value.handle);
 
@@ -112,9 +120,6 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		requireGithub(body === undefined || typeof body === "string" && !body.includes("<!-- mlegls-pi:tracker"), "body must be Markdown without a reserved envelope");
 		for (const key of Object.keys(fields)) requireGithub(!key.startsWith("$") && !["github", "github-comments", "github-types"].includes(key), "read-only/reserved field " + key);
 		if (fields.stage !== undefined && fields.stage !== null) requireGithub(["idea", "goal", "spec", "ticket"].includes(fields.stage as string), "unsupported stage; complete via close");
-		const assignee = parseAssignee(fields.assignee);
-		if (fields.assignee != null) requireGithub(assignee, "invalid assignee selector");
-		requireGithub(assignee?.kind !== "session", "GitHub labels cannot represent the session selector " + fields.assignee);
 		if (fields.author !== undefined && fields.author !== null) requireGithub(typeof fields.author === "string" && fields.author.trim(), "author must be nonempty provenance");
 		if (fields.title !== undefined) requireGithub(typeof fields.title === "string" && fields.title.trim(), "title must be nonempty");
 		if (fields.priority !== undefined && fields.priority !== null) requireGithub([1, 2, 3].includes(fields.priority as number), "priority must be 1, 2 or 3 (the p1|p2|p3 label)");
@@ -149,13 +154,12 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		}
 		for (const [id, node] of rows) if (node.receipt?.stage === null)
 			requireGithub("stage" in fields && fields.stage !== null && id === slug || [...proposed.values()].some(other => other.parent === id), "cannot strand an explicitly delegated parent");
-		return assignee;
 	}
-	function labels(snapshot: GithubSnapshot, issue: GithubIssue | undefined, fields: Fields, assignee: Assignee | undefined): string[] {
+	function labels(snapshot: GithubSnapshot, issue: GithubIssue | undefined, fields: Fields, readyFor: AssigneeRole | undefined): string[] {
 		let names = issue?.labels.map(label => label.name) ?? [];
-		if (assignee || fields.assignee === null) {
+		if (readyFor || fields.assignee === null) {
 			names = names.filter(name => !triageRoles.some(role => project.roles[role] === name));
-			if (assignee) names.push(project.roles[assignee.kind === "agent" ? "ready-for-agent" : "ready-for-human"]);
+			if (readyFor) names.push(project.roles[readyFor]);
 		}
 		if ("priority" in fields) {
 			names = names.filter(name => !/^p[123]$/.test(name));
@@ -196,14 +200,14 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 			saveJournal(project, local, run.root);
 		}
 	}
-	function applyUpdate(snapshot: GithubSnapshot, slug: string, fields: Fields, body: string | undefined, run?: GlobalRunState) {
+	function applyUpdate(snapshot: GithubSnapshot, slug: string, fields: Fields, body: string | undefined, run?: GlobalRunState, readyFor?: AssigneeRole) {
 		const issue = native(snapshot, slug), rows = view(snapshot);
 		requireGithub(rows.has(slug), "cannot update a removed provisional issue");
-		const assignee = validate(fields, rows, slug, body);
+		validate(fields, rows, slug, body);
 		const decoded = decodeGithubBody(issue.body);
 		if ("author" in fields && decoded.fields.author !== undefined) requireGithub(fields.author === decoded.fields.author, "author provenance is immutable");
 		if ("claimed-by" in fields) claimChange(snapshot, issue, rows, run, fields["claimed-by"], (fields["part-of"] ?? rows.get(slug)!.partOf) as string | undefined);
-		const labelIds = labels(snapshot, issue, fields, assignee), extra = extras(issue, fields);
+		const labelIds = labels(snapshot, issue, fields, readyFor), extra = extras(issue, fields);
 		const input: Record<string, unknown> = { id: issue.id };
 		if ("title" in fields) input.title = fields.title;
 		if (body !== undefined || !isDeepStrictEqual(decoded.fields, extra)) input.body = encodeGithubBody(body ?? decoded.body, extra, decoded.marker);
@@ -259,12 +263,13 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 	}
 	return {
 		create(request) {
+			const readyFor = assigneeRole(request.fields?.assignee);
 			return write((snapshot, run) => {
 				requireGithub(typeof request.slug === "string" && request.slug.trim() && typeof request.body === "string", "create requires a requested title/slug and Markdown body");
 				const fields: Fields = { ...request.fields, author: request.fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined) };
 				requireGithub(fields.author, "create requires author or PI_SESSION_ID");
-				const assignee = validate(fields, view(snapshot), "new", request.body);
-				const labelIds = labels(snapshot, undefined, fields, assignee);
+				const rows = view(snapshot); validate(fields, rows, "new", request.body);
+				const labelIds = labels(snapshot, undefined, fields, readyFor);
 				let claim: GithubReceipt["claim"];
 				if ("claimed-by" in fields) {
 					requireGithub(typeof fields["part-of"] === "string", "provisional create requires an existing parent");
@@ -315,7 +320,10 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				return intent.slug;
 			});
 		},
-		update(slug, fields, body) { write((snapshot, run) => applyUpdate(snapshot, slug, fields, body, run)); },
+		update(slug, fields, body) {
+			const readyFor = assigneeRole(fields?.assignee);
+			write((snapshot, run) => applyUpdate(snapshot, slug, fields, body, run, readyFor));
+		},
 		close(slug, result) {
 			write((snapshot, run) => {
 				const issue = native(snapshot, slug), journal = loadJournal(project, run?.root);
@@ -379,7 +387,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				if (intent.done) return;
 				requireGithub(issue.labels.some(label => [project.roles["ready-for-agent"], project.roles["ready-for-human"]].includes(label.name)), "owner changed routing during move-out");
 				comment(issue, intent.marker, intent.body, snapshot.viewer.login);
-				applyUpdate(snapshot, slug, { assignee: "human" }, undefined, run); release(snapshot, issue, run);
+				applyUpdate(snapshot, slug, { assignee: "human" }, undefined, run, "ready-for-human"); release(snapshot, issue, run);
 				const complete = loadJournal(project, run?.root); complete.moves[slug]!.done = true; saveJournal(project, complete, run?.root);
 			});
 		},
