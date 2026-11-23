@@ -20,7 +20,7 @@ function tracker(cwd: string, slug: string) {
   };
   console.log(`${slug} seeded: ${read()}`);
   const update = call("update", slug, "--fields", JSON.stringify({ assignee }));
-  console.log(update.exitCode ? update.stderr.toString().trim() : `${slug} saved: ${read()}`);
+  console.log(update.exitCode ? `${update.stderr.toString().trim()}\n${slug} after refusal: ${read()}` : `${slug} saved: ${read()}`);
 }
 
 try {

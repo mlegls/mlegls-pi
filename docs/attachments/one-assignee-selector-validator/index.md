@@ -28,3 +28,13 @@ Both orders worked as predicted, and both invalid cases were rejected across all
 No blocking friction in the prepared CLI journey. On malformed input the tracker diagnostic identifies the field but leaves the caller to consult the grammar for the allowed efforts or combination rules.
 
 The replay reports the refusals without a post-rejection readback. To verify the unchanged-state prediction, repeat each rejected update in a disposable tracker seeded with `assignee: agent`, then read the same issue again and require `agent`. The table checks observable agreement; whether the four callers use one parser is a code-review check.
+
+## Review (one-assignee-selector-validator-review-3)
+
+Code review: the vault CLI (`issues.ts` parse, frontier eligibility and human selection), GitHub write (`assigneeRole`) and read (`tracker-github.ts` graph and eligibility), dispatch `assertAssignee` and the Obsidian `assignment` all call `parseAssignee` in [lib/assignee.ts](../../../lib/assignee.ts); no other selector regex remains. "All four callers use one parser" holds.
+
+The driver's friction (diagnostics name only the field) is fixed: vault, GitHub and dispatch now quote the rejected value and append `ASSIGNEE_GRAMMAR`, e.g. `invalid assignee selector "model:fixture/example:turbo"; expected agent, human, user:<name>, session:<id>, agent:<stance> or model:<provider>/<model>:<none|minimal|low|medium|high|xhigh>; only one stance and one model override combine`. Obsidian's per-issue error stays "invalid assignee".
+
+`first-use.ts` now reads the issue back after a refused update. Re-running all five selectors: every refusal (GitHub `session:`, both malformed inputs in vault and GitHub) reads back `agent`; accepted rows and the Obsidian/dispatch columns are unchanged from the table above.
+
+The effort enumeration is stricter than the old `[a-z]+` regexes; mlegls-pi's live issues carry no `model:` pins, so nothing stored becomes invalid there.
