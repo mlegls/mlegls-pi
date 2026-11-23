@@ -155,8 +155,9 @@ export default function (pi: ExtensionAPI) {
 		const text = last.content.filter(part => part.type === "text").map(part => part.text).join("\n");
 		let wake: string | undefined;
 		if (PROMISED_WAKE.test(text)) {
+			// Without a session file pi-processes keeps no receipt, so a live process is unknowable.
 			const sessionFile = ctx.sessionManager.getSessionFile();
-			if (!sessionFile || managedProcess(sessionFile, true) === false) wake = NO_WAKE;
+			if (sessionFile && managedProcess(sessionFile, true) === false) wake = NO_WAKE;
 		}
 		const report = worker ? parse(text, ctx.cwd) : undefined;
 		const missing = report?.status === null;

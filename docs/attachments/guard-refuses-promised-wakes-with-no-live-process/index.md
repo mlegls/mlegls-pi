@@ -24,3 +24,7 @@ The replay requires Bun, the installed repository dependencies, and `~/dev/pi-pr
 | Run `live`; expect the same text to complete without a warning with a real managed watcher. | After readiness with the process extension, the replay reported the same promise accepted with a live watcher. | Met |
 
 No friction encountered. The replay exercises Pi's turn-end behavior through the SDK with scripted text; it does not exercise model wording choices or delivery of a later watcher notification.
+
+## Review
+
+The guard refused when Pi had no session file (`--no-session`, in-memory sessions). pi-processes keeps no receipt then, yet still runs processes, so a live watcher could not be seen and the promise was refused anyway. The guard now treats that case as unknown and lets the turn end; a missing registry beside a real session file still counts as empty. Reran `bun "$replay" empty && bun "$replay" live` on the repaired head: same three outcomes as above. `bun test extensions/guard lib/reconcile`: 69 pass.
