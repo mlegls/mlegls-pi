@@ -323,7 +323,7 @@ test("outline maps each linked bullet to its issue, flags unlinked intent among 
   expect(out).toContain("5: the blocker —  blocker  [own:idea effective:idea]");
   expect(out).toContain("6: a note with no issue  [no issue]");
   expect(out).not.toContain("prose that links nothing");
-  expect(out).toContain("uncovered: loose  [own:goal effective:goal assignee:human] p?");
+  expect(out).toContain("uncovered: loose  [own:idea effective:idea assignee:human] p?");
   expect(out).not.toContain("uncovered: task");
   rmSync(join(issues, "loose.md"));
   put("task", frontmatter("stage: ticket\nassignee: agent"));
@@ -336,7 +336,7 @@ test("subtree readiness, assignment, dependencies, scheduling and review remain 
   const row = (slug: string) => snapshot().find((i: any) => i.slug === slug);
   put("scope", frontmatter("stage: done\nassignee: human\npriority: 1"));
   put("child", frontmatter('stage: ticket\nassignee: "agent:fill, model:zai/glm-5.3-flash:high"\npart-of: ' + link("scope")));
-  expect(row("scope").effectiveStage).toBe("ticket");
+  expect(row("scope").effectiveStage).toBe("ready");
   expect(row("scope").frontier).toBe(true);
   expect(row("child").priority).toBe(null);
   put("early", frontmatter('stage: idea\nassignee: human\npart-of: ' + link("scope")));
@@ -361,12 +361,12 @@ test("subtree readiness, assignment, dependencies, scheduling and review remain 
   put("scope", frontmatter("assignee: agent"));
   expect(row("scope").ownStage).toBe(null);
   put("archive/retired", frontmatter('stage: done\npart-of: ' + link("scope")));
-  expect(row("scope").effectiveStage).toBe("ticket");
+  expect(row("scope").effectiveStage).toBe("ready");
   rmSync(join(issues, "archive/retired.md"));
   put("early", frontmatter('stage: done\nclaimed-by: session:reserved\npart-of: ' + link("scope")));
   expect(row("scope").frontier).toBe(false);
   put("early", frontmatter('stage: done\npart-of: ' + link("scope")));
-  expect(row("scope").effectiveStage).toBe("ticket");
+  expect(row("scope").effectiveStage).toBe("ready");
   put("child", frontmatter('stage: done\npart-of: ' + link("scope")));
   expect(run("done").out).toContain("scope");
   expect(row("scope").frontier).toBe(false);
@@ -496,14 +496,14 @@ test("Markdown dangling files are reported outside archives, excluding code and 
   } finally { p.done(); }
 });
 
-test("check names the child that lowers a spec, and a side friction log", () => {
+test("check names the child that lowers a ready issue, and a side friction log", () => {
   const p = project({
     "issues/shaped.md": frontmatter("stage: spec\nassignee: agent"),
     "issues/unshaped.md": frontmatter('stage: goal\nassignee: agent\npart-of: "[[projects/fixture/issues/shaped]]"'),
     "frictions.md": "- a one-liner\n",
   });
   const out = p.check();
-  expect(out).toContain("shaped: own spec but effective goal through unshaped");
+  expect(out).toContain("shaped: own ready but effective idea through unshaped");
   expect(out).toContain("docs/frictions.md: frictions in a vault project are stage: idea issues");
   p.done();
 }, 30_000);

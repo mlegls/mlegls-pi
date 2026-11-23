@@ -1,9 +1,10 @@
 // Reconciler for one dispatched issue subtree (docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md).
 //
 // Each tick recomputes what every node needs from observed state (the global tracker and private landing ledger, the
-// workers' bb turn reports and current thread/live observations) and takes the next step. Specs get to tickets through the refine
-// role (manager), which promotes them or commits children; an implementer who finds its ticket
-// bigger than one session sends it back there (respec). Tickets run implement → drive → review → integrate, a leaf into its parent's branch, a node with children once they
+// workers' bb turn reports and current thread/live observations) and takes the next step. A ready issue marked `decompose`
+// starts with the refine role (manager), which promotes it or commits children; an implementer who finds its issue
+// bigger than one session sends it back there (respec). Ready issues run implement → (drive, when the change touches a declared
+// user surface) → review → integrate, a leaf into its parent's branch, a node with children once they
 // have all landed in its own branch ("collector"), which its own chain then carries up. Mechanical failures
 // are retried here within budgets; anything else is an exception for a handler worker spawned for the nearest
 // ancestor with children, which resolves it, or escalates up to the owner session (the root supervisor).
@@ -48,7 +49,7 @@ import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVer
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
 import type { GlobalRunState, RefinementAttempt, WorkerPhase } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
-import { touchesRenderedSurface } from "./config.ts";
+import { touchesRenderedSurface, touchesUserSurface } from "./config.ts";
 import { prepareStaging, resolveLanding } from "./pr-config.ts";
 import { createPullRequestHost } from "./pr-host.ts";
 import { advancePullRequest } from "./pull-request.ts";
@@ -735,8 +736,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const nextHandle = (slug: string, kind: string) => { const h = (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90); save(); return h; };
 	const ticketText = (i: Issue) => "Issue " + i.slug + ":\n\n" + tracker.text(i.slug);
 	/** Current global metadata, not a worker branch copy. */
-	const driveNone = (i: Issue): string | undefined => tracker.fields(i.slug).drive === "none" ? "the ticket declares `drive: none`" : undefined;
-	const skippedDrive = (why: string) => "Drive was skipped (" + why + "): there is no driver's packet, and you are the only pass before integration. Review the change against the ticket directly, and check the implementer's own evidence (rehearsals, runs) rather than redoing it. Your handoff still needs `stories` and `evidence`; commit an index under docs/attachments/ that records what established each story. Say in `caveats` that drive was skipped, and which post-landing gate carries the acceptance and who owns it, as the ticket names them.";
+	/** Drive runs where a blind first user can catch what the diff doesn't show: `drive: always`, or a change that touches
+	 * a user surface the repository declares. `drive: none` skips it regardless. */
+	const driveSkip = (i: Issue, c: Chain): string | undefined => {
+		const drive = tracker.fields(i.slug).drive;
+		if (drive === "none") return "the ticket declares `drive: none`";
+		if (drive === "always" || !c.base || !c.handle) return undefined;
+		return touchesUserSurface(cwd, c.base, git(c.handle.path, "rev-parse", "HEAD")) ? undefined
+			: "the change touches no user surface declared in .pi/reconcile.json (drivePaths, renderedPaths); `drive: always` asks for one";
+	};
+	const skippedDrive = (why: string) => "Drive was skipped (" + why + "): there is no driver's packet, and you are the only pass before integration. Review the change against the ticket directly, and check the implementer's own evidence (rehearsals, runs) rather than redoing it. Your handoff still needs `stories` and `evidence`; commit an index under docs/attachments/ that records what established each story. Say in `caveats` that drive was skipped" + (why.startsWith("the ticket declares") ? ", and which post-landing gate carries the acceptance and who owns it, as the ticket names them." : ".");
 	/** Commit what a replaced worker left uncommitted before its successor's base is read. Retirement saved it too, but
 	 * only after the successor launched, so the WIP commit missed it (2026-10-16: quiesce-scene-source-delivery-writers,
 	 * implement-s's 11081c1e not in implement-t). */
@@ -1565,7 +1574,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			: null;
 		const blocked = r.status === "blocked" || r.status === "needs-input";
 		const postLanding = blocked && c.phase === "review" && !reviewShape && r.handoff?.postLanding !== undefined
-			? selectPostLanding(r.handoff, issue.ownStage === "ticket" ? tracker.fields(slug)["post-landing"] : undefined) : [];
+			? selectPostLanding(r.handoff, issue.ownStage === "ready" ? tracker.fields(slug)["post-landing"] : undefined) : [];
 		if (typeof postLanding === "string") return repair(slug, c, "post-landing", postLanding + " Repost your review.", issues, text);
 		if (blocked && !postLanding.length) {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
@@ -1609,7 +1618,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (filed.length) return joinFiledChildren(slug, c, filed, issues, text);
 			c.setup = r.handoff?.setup ?? null;
 			c.note = undefined;
-			c.skipDrive ??= driveNone(issue);
+			c.skipDrive ??= driveSkip(issue, c);
 			if (c.skipDrive) { note("drive skipped for " + slug + ": " + c.skipDrive); return startPhase(slug, c, "review", issue, issues, skippedDrive(c.skipDrive), false, undefined, true); }
 			const setupProblem = setupError(c.setup);
 			if (setupProblem) return repair(slug, c, "setup", "Your " + setupProblem + ". Supply a runnable public CLI/browser/tool entry point with isolated setup, readiness and cleanup for the story persona. A unit-test command alone is not setup. Commit any needed setup recipe and report done again with the repaired setup handoff.", issues, text);
@@ -1877,7 +1886,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const why = (i: Issue, view: Map<string, Issue>): string => {
 		const r: string[] = [];
 		if (!i.ready) {
-			const low = [...view.values()].filter(d => !finished(d) && !!d.ownStage && !["spec", "ticket", "done"].includes(d.ownStage) && descends(d, i.slug, view));
+			const low = [...view.values()].filter(d => !finished(d) && !!d.ownStage && !["ready", "done"].includes(d.ownStage) && descends(d, i.slug, view));
 			r.push("effective stage " + i.effectiveStage + (low.length ? " through " + low.map(d => d.slug + " (" + d.ownStage + ")").join(", ") : ""));
 		}
 		for (const b of i.blockers ?? []) {
@@ -1946,7 +1955,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const closedUnder = s.chains[slug] && !s.landed[slug] ? s.chains[slug] : undefined;
 		if (issue && finished(issue) && closedUnder) {
 			if (!s.exceptions[slug]) raise(slug, CLOSED_ACTIVE, slug + " is " + issue.effectiveStage + " in " + into + ", but this run never landed it: it was closed while its " + closedUnder.phase
-				+ " worker " + (closedUnder.handle?.handle ?? "(unreceipted)") + " still runs. Reopen it (stage back to ticket) to carry on: this exception withdraws itself and the worker's latest report is handled as usual. Or resolve move-out to retire its workers; their branches are kept.\n\n"
+				+ " worker " + (closedUnder.handle?.handle ?? "(unreceipted)") + " still runs. Reopen it (stage back to ready) to carry on: this exception withdraws itself and the worker's latest report is handled as usual. Or resolve move-out to retire its workers; their branches are kept.\n\n"
 				+ (fresh(closedUnder.handle, undefined, closedUnder.launchedAt)?.body ?? ""), new Map(), "owner");
 			return "active";
 		}
@@ -2077,7 +2086,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					note(slug + " resumes " + chain.phase + " from the stopped run's branch " + resumed!.branch + " at " + chain.resumeFrom);
 					await startPhase(slug, chain, resumed!.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
 				}
-				else await startPhase(slug, chain, !chain.self && issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
+				else await startPhase(slug, chain, !chain.self && tracker.fields(slug).decompose === true ? "refine" : "implement", issue, issues);
 			} catch (e) {
 				// Nothing launched: forget the chain so the post-reset tick starts it afresh.
 				if (e instanceof GithubRateLimited) { delete s.chains[slug]; if (resumed && chain.resumeFrom) (s.resume ??= {})[slug] = resumed; save(); throw e; }

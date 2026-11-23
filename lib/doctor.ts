@@ -154,8 +154,8 @@ export function reportGaps(gaps: Gap[], tracker: Tracker, host = hostname()) {
 		if (issue && !issue.done) continue;
 		const body = "Host: " + host + "\n\n" + gap.message + "\n\n" + gap.remedy +
 			"\n\nFound by the pi host doctor. Run bun lib/doctor.ts in the mlegls-pi checkout after repair.\n";
-		if (issue) tracker.update(slug, { stage: "ticket", assignee: "human" }, body);
-		else tracker.create({ slug, fields: { stage: "ticket", assignee: "human", author: "host-doctor:" + host }, body });
+		if (issue) tracker.update(slug, { stage: "ready", assignee: "human" }, body);
+		else tracker.create({ slug, fields: { stage: "ready", assignee: "human", author: "host-doctor:" + host }, body });
 	}
 }
 

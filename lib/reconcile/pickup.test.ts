@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import type { Issue } from "../tracker";
 import { configure, loadPickup, scan, select, stopPickup } from "./pickup";
 
-const row = (slug: string, o: Partial<Issue> = {}): Issue => ({ slug, archived: false, ownStage: "ticket", effectiveStage: "ticket", partOf: null,
+const row = (slug: string, o: Partial<Issue> = {}): Issue => ({ slug, archived: false, ownStage: "ready", effectiveStage: "ready", partOf: null,
 	assignee: "agent", blockedBy: [], guards: [], ready: true, eligible: true, frontier: true, deferred: false, done: false, claims: [], selectors: [], ...o });
 const rows = (...r: Issue[]) => new Map(r.map(i => [i.slug, i]));
 
@@ -14,9 +14,9 @@ test("select takes maximal in-scope frontier roots and names why it skips the re
 	const snapshot = rows(
 		row("a"),
 		row("outside"),
-		row("p", { ownStage: "goal", effectiveStage: "goal", ready: false, frontier: false, claims: [{ slug: "p", claimedBy: "session:shaper" }] }),
+		row("p", { ownStage: "idea", effectiveStage: "idea", ready: false, frontier: false, claims: [{ slug: "p", claimedBy: "session:shaper" }] }),
 		row("c", { partOf: "p" }),
-		row("e", { ownStage: "spec", effectiveStage: "spec" }),
+		row("e", { ownStage: "ready", effectiveStage: "ready" }),
 		row("d", { partOf: "e" }),
 		row("ran"),
 		row("fresh"),

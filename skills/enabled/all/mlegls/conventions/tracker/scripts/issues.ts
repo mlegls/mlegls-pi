@@ -25,6 +25,7 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 import { ASSIGNEE_GRAMMAR, parseAssignee } from "../../../../../../../lib/assignee.ts";
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight, reconcileRuns, reconcilerAlive } from "./inflight.ts";
+import { STAGES as STAGE_ORDER, knownStage, normalizeStageFields } from "../../../../../../../lib/stage.ts";
 // Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
 let flight = new Map<string, string[]>();
 
@@ -34,6 +35,7 @@ type Issue = {
   archived: boolean;
   next?: string;
   stage?: string;
+  decompose?: boolean;
   assignee?: string;
   author?: string;
   partOf?: string;
@@ -65,7 +67,10 @@ function contract(text: string) {
 
 function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "file" | "archived"> {
   try {
-    const fm = contract(text).doc.toJS({ maxAliasCount: 0 });
+    const raw = contract(text).doc.toJS({ maxAliasCount: 0 });
+    if ("stage" in raw && !knownStage(raw.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
+    if ("decompose" in raw && typeof raw.decompose !== "boolean") throw new Error("decompose must be true or false");
+    const fm = normalizeStageFields(raw);
     const link = (value: unknown): string => {
       if (typeof value !== "string" || !/^\[\[projects\/[^/\[\]#|\s]+\/issues\/(?:archive\/)?[^/\[\]#|\s]+(?:\|[^\[\]\r\n]+)?\]\]$/.test(value))
         throw new Error("relations must be vault-absolute issue wikilinks");
@@ -75,7 +80,6 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
       if (!KINDS.includes(fm.next)) throw new Error("next must be one of " + KINDS.join(" "));
       if ("stage" in fm) throw new Error("legacy next cannot mix with stage");
     }
-    if ("stage" in fm && !STAGES.includes(fm.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
     if ("assignee" in fm && !parseAssignee(fm.assignee)) throw new Error("invalid assignee selector " + JSON.stringify(fm.assignee) + "; " + ASSIGNEE_GRAMMAR);
     if ("author" in fm && (typeof fm.author !== "string" || !fm.author.trim())) throw new Error("author must be a nonempty provenance string");
     if ("blocked-by" in fm && !Array.isArray(fm["blocked-by"])) throw new Error("blocked-by must be a list of issue wikilinks and guards");
@@ -86,7 +90,7 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
     if ("priority" in fm && ![1, 2, 3, 4].includes(fm.priority)) throw new Error("priority must be 1, 2, 3 or 4");
     return {
       next: fm.next,
-      stage: fm.stage, assignee: fm.assignee, author: fm.author,
+      stage: fm.stage, decompose: fm.decompose ?? undefined, assignee: fm.assignee, author: fm.author,
       partOf: "part-of" in fm ? link(fm["part-of"]) : undefined,
       blockedBy: (fm["blocked-by"] ?? []).filter(isLink).map(link),
       guards,
@@ -181,8 +185,10 @@ function issueFor(slug: string, all: Map<string, Issue>): Issue {
 
 const revisionOf = (bytes: Buffer): string => createHash("sha256").update(bytes).digest("hex");
 
+/** Legacy stage names read as their current ones (lib/stage.ts). */
 function fieldsOf(text: string): Record<string, unknown> {
-  const fields = contract(text).doc.toJS({ maxAliasCount: 0 });
+  const fields = normalizeStageFields(contract(text).doc.toJS({ maxAliasCount: 0 }));
+  if (fields.decompose === null) delete fields.decompose;
   if ("part-of" in fields) fields["part-of"] = slugOf(fields["part-of"]);
   if ("blocked-by" in fields) fields["blocked-by"] = fields["blocked-by"].map((v: string) => v.startsWith("[[") ? slugOf(v) : v);
   return fields;
@@ -440,7 +446,7 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
       const author = fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined);
       if (!author) throw new Error("create requires author or PI_SESSION_ID provenance");
       if (emptyIdentity(author)) throw new Error("author must be a nonempty provenance string");
-      const text = replaceContract("---\n{}\n---\n", storageFields({ ...fields, author }, dir, all), body);
+      const text = replaceContract("---\n{}\n---\n", storageFields(normalizeStageFields({ ...fields, author }), dir, all), body);
       changes.set(join(dir, slug + ".md"), text);
     } else {
       const i = issueFor(slug, all);
@@ -455,7 +461,11 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
         if ("author" in fields && existing.author !== undefined && fields.author !== existing.author) throw new Error("author provenance is immutable");
         if (fields.author !== existing.author && emptyIdentity(fields.author)) throw new Error("author must be a nonempty provenance string");
         if (checkForBodyWipe) refuseBodyWipe(slug, contract(current).body);
-        changes.set(i.file, replaceContract(current, storageFields(fields, dir, all), body));
+        // A write also moves a legacy stage name it didn't set to the current one.
+        const stored = contract(current).doc.toJS({ maxAliasCount: 0 });
+        const migrated: Record<string, unknown> = "stage" in fields ? {} : normalizeStageFields({ stage: stored.stage, ...(typeof stored.decompose === "boolean" ? { decompose: stored.decompose } : {}) });
+        const legacy = "stage" in fields || migrated.stage === stored.stage ? {} : migrated;
+        changes.set(i.file, replaceContract(current, storageFields(normalizeStageFields({ ...legacy, ...fields }), dir, all), body));
       } else if (cmd === "close") {
         if (i.archived) throw new Error("close requires a live issue");
         if (evidence !== undefined && (!evidence || evidence.startsWith("/") || evidence.includes("\\") || evidence.split("/").some(p => p === ".." || p === "." || !p)))
@@ -487,7 +497,7 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
 }
 
 const KINDS = ["grill", "research", "prototype", "measure", "simplify", "implement", "wait", "done"];
-const STAGES = ["idea", "goal", "spec", "ticket", "done"];
+const STAGES: readonly string[] = STAGE_ORDER;
 /** Live issues not yet committed, whose provenance is still being written; none outside git. */
 function uncommitted(dir: string): string[] {
   const p = spawnSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "."], { cwd: dir, encoding: "utf8" });
@@ -539,7 +549,7 @@ function model(i: Issue, all: Map<string, Issue>, explicit = false) {
   ];
   const selectors = remaining.map(n => ({ slug: n.slug, assignee: n.assignee ?? null }));
   const eligible = !i.next && remaining.length > 0 && remaining.every(n => parseAssignee(n.assignee)?.kind === "agent");
-  const ready = effective === "spec" || effective === "ticket";
+  const ready = effective === "ready";
   const deferred = nodes.some(n => n.priority === 4);
   return { slug: i.slug, file: i.file, archived: i.archived, legacy: !!i.next, next: i.next,
     ownStage: i.stage ?? null, effectiveStage: effective, assignee: i.assignee ?? null,
@@ -1193,7 +1203,7 @@ if (cmd !== "lint") switch (cmd) {
       if (claimLive(i) === false) say(`${i.slug}: stale claim ${i.claimedBy}; verify ownership before clearing`);
       // Agent refinement stays monotone. A subtree parked for human shaping keeps its parent and honest stage.
       const effective = effectiveStage(i, all);
-      if (!i.archived && (i.stage === "spec" || i.stage === "ticket") && effective && STAGES.indexOf(effective) < STAGES.indexOf(i.stage) && model(i, all).eligible) {
+      if (!i.archived && i.stage === "ready" && effective && STAGES.indexOf(effective) < STAGES.indexOf(i.stage) && model(i, all).eligible) {
         const lowering = children(i, all).filter((c) => { const e = effectiveStage(c, all); return e && STAGES.indexOf(e) < STAGES.indexOf(i.stage!); });
         say(`${i.slug}: own ${i.stage} but effective ${effective} through ${lowering.map((c) => c.slug).join(", ")}; park a child that needs shaping with assignee human, retaining part-of (lifecycle)`);
       }

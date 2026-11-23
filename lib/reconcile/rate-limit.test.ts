@@ -37,7 +37,7 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 		const { githubProject, rateLimitMark } = await import("../tracker-github-snapshot.ts");
 		const { run, load } = await import("./reconcile.ts");
 		const tracker = getGithubTracker(cwd, {})!, project = githubProject(cwd)!;
-		const id = tracker.create({ slug: "leaf", fields: { title: "Leaf", stage: "ticket", assignee: "agent", author: "user:fixture" }, body: "Leaf contract.\n" });
+		const id = tracker.create({ slug: "leaf", fields: { title: "Leaf", stage: "ready", drive: "always", assignee: "agent", author: "user:fixture" }, body: "Leaf contract.\n" });
 		const state = () => load(cwd, id)!;
 		const until = async <T>(fn: () => T | false | undefined, label: string, ms = 60_000): Promise<T> => {
 			for (const end = Date.now() + ms; Date.now() < end; await Bun.sleep(100)) { const value = fn(); if (value) return value; }

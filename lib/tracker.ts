@@ -4,7 +4,8 @@ import { getGithubTracker } from "./tracker-github.ts";
 import { findIssuesDir } from "../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts";
 
 /** Global tracker contract. */
-export type Stage = "idea" | "goal" | "spec" | "ticket" | "done";
+export type { Stage } from "./stage.ts";
+import type { Stage } from "./stage.ts";
 
 /** Lifecycle projection, matching issues.ts snapshot --json (not legacy rows).
  * file is an optional backend locator; consumers use text/fields rather than opening it. */

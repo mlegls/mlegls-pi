@@ -13,10 +13,24 @@ export function reconcileConfig(cwd: string): Record<string, unknown> {
 }
 
 export function touchesRenderedSurface(cwd: string, base: string, head: string): boolean {
-	const paths = reconcileConfig(cwd).renderedPaths;
-	if (paths === undefined) return false;
-	if (!Array.isArray(paths) || paths.some(p => typeof p !== "string" || !p.trim()))
-		throw new Error("Expected renderedPaths to be an array of nonempty globs in committed .pi/reconcile.json");
+	return touches(cwd, base, head, ["renderedPaths"]);
+}
+
+/** Whether a change reaches a surface a blind first user should drive: anything rendered, plus the non-rendered
+ * user surfaces (CLIs, APIs, journeys) a repository declares in drivePaths. */
+export function touchesUserSurface(cwd: string, base: string, head: string): boolean {
+	return touches(cwd, base, head, ["drivePaths", "renderedPaths"]);
+}
+
+function touches(cwd: string, base: string, head: string, keys: string[]): boolean {
+	const config = reconcileConfig(cwd);
+	const paths = keys.flatMap(key => {
+		const value = config[key];
+		if (value === undefined) return [];
+		if (!Array.isArray(value) || value.some(p => typeof p !== "string" || !p.trim()))
+			throw new Error("Expected " + key + " to be an array of nonempty globs in committed .pi/reconcile.json");
+		return value as string[];
+	});
 	if (!paths.length) return false;
 	const globs = paths.map(p => new Bun.Glob(p.includes("/") ? p : "**/" + p));
 	// Include both names of a move across the surface boundary.

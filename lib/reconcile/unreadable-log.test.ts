@@ -33,7 +33,7 @@ async function fixture(body: (o: { repo: string; bb: ReturnType<typeof fakeBb> }
 			writeFileSync(join(root, "agents/roles", role + ".md"), "Shell fixture.\n");
 		}
 		git(repo, "init", "-qb", "main"); git(repo, "config", "user.name", "Fixture"); git(repo, "config", "user.email", "fixture@example.invalid");
-		writeFileSync(join(repo, "docs/issues/solo.md"), "---\nstage: ticket\nassignee: agent:implementr\n---\n\nLarge log fixture.\n");
+		writeFileSync(join(repo, "docs/issues/solo.md"), "---\nstage: ready\nassignee: agent:implementr\ndrive: always\n---\n\nLarge log fixture.\n");
 		git(repo, "add", "."); git(repo, "commit", "-qm", "fixture");
 		start({ cwd: repo, root: "solo", owner: "thr_solo", budget: 1 });
 		running = true;

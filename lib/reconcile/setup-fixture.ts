@@ -51,7 +51,7 @@ export async function prepare(skipDrive = false, postLanding = false) {
    writeFileSync(join(root, "agents/roles", role + ".md"), "Offline shell worker.\n");
   }
   git("init", "-qb", "main"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid");
-  writeFileSync(join(f.repo, "docs/issues/solo.md"), "---\nstage: ticket\nassignee: agent:implementr\n" + (skipDrive ? "drive: none\n" : "") + "---\n\nSetup gate fixture.\n");
+  writeFileSync(join(f.repo, "docs/issues/solo.md"), "---\nstage: ready\nassignee: agent:implementr\n" + (skipDrive ? "drive: none\n" : "drive: always\n") + "---\n\nSetup gate fixture.\n");
   git("add", "."); git("commit", "-qm", "fixture");
   if (postLanding) getTracker(f.repo).update("solo", { "post-landing": [
    { id: "deploy", story: "Main deploy serves the candidate.", trigger: "target-deploy", check: "Find the deploy triggered by the target update; GET /ready returns 200 for that deployment." },

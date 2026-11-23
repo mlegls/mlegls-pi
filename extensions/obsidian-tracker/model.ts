@@ -4,8 +4,8 @@
 
 import { parseAssignee } from "../../lib/assignee.ts";
 
-export const STAGES = ["idea", "goal", "spec", "ticket", "done"] as const;
-export type Stage = (typeof STAGES)[number];
+export { STAGES, type Stage } from "../../lib/stage.ts";
+import { STAGES, normalizeStage, type Stage } from "../../lib/stage.ts";
 
 export type Note = { path: string; frontmatter?: Record<string, unknown> | null };
 
@@ -50,7 +50,7 @@ export function model(notes: Note[], { includeDeferred = false } = {}): Model {
     const priority = fm.priority;
     const validPriority = typeof priority === "number" && [1, 2, 3, 4].includes(priority);
     issues.set(id, {
-      id, slug: m[2], project: m[1], legacy, ownStage: fm.stage, assignee: fm.assignee,
+      id, slug: m[2], project: m[1], legacy, ownStage: fm.stage === undefined ? undefined : normalizeStage(fm.stage) ?? fm.stage, assignee: fm.assignee,
       archived: id.includes("/issues/archive/"), next: fm.next ?? fm.status,
       partOf: refPath(fm["part-of"] ?? fm.parent),
       blockedBy: list(fm["blocked-by"] ?? fm.blockedBy).map(refPath).filter((x): x is string => !!x),
@@ -83,11 +83,11 @@ export function model(notes: Note[], { includeDeferred = false } = {}): Model {
     if (!i.assignment.valid) i.errors.push("invalid assignee");
     if (i.partOf && issues.get(i.partOf)?.archived) i.errors.push("live issue has archived parent");
     if (i.partOf && !issues.has(i.partOf)) i.errors.push("parent is not an issue (indexes are links)");
-    const ranks = [i.ownStage === undefined ? 4 : STAGES.indexOf(i.ownStage as Stage), ...i.children.map((c) => STAGES.indexOf(c.effectiveStage as Stage))];
+    const ranks = [i.ownStage === undefined ? STAGES.length - 1 : STAGES.indexOf(i.ownStage as Stage), ...i.children.map((c) => STAGES.indexOf(c.effectiveStage as Stage))];
     i.effectiveStage = i.errors.length || ranks.some((r) => r < 0) ? "invalid" : STAGES[Math.min(...ranks)];
     i.subtreeDone = i.effectiveStage === "done";
-    i.ownReady = i.ownStage === "spec" || i.ownStage === "ticket";
-    i.subtreeReady = i.effectiveStage === "spec" || i.effectiveStage === "ticket";
+    i.ownReady = i.ownStage === "ready";
+    i.subtreeReady = i.effectiveStage === "ready";
     evaluated.add(i.id);
   }
   for (const i of issues.values()) evaluate(i);

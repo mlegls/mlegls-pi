@@ -38,7 +38,8 @@ test("failed refinement stops its writer before graph-safe cleanup and replays r
 		context.state = f.restore();
 		await recoverRefinements(context);
 		expect(removed).toEqual(["dependent", "leaf", "container"]);
-		expect(f.tracker.fields("root").stage).toBe("spec");
+		expect(f.tracker.fields("root").stage).toBe("ready");
+		expect(f.tracker.fields("root").decompose).toBe(true);
 		expect(f.tracker.fields("root").priority).toBe(3);
 		expect(f.tracker.text("root")).toContain("Sharpened contract survives");
 		expect(f.restore().refinements.failed.phase).toBe("removed");

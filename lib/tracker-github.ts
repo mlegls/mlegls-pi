@@ -1,4 +1,5 @@
 import { parseAssignee } from "./assignee.ts";
+import { STAGES, knownStage, normalizeStage } from "./stage.ts";
 import { githubMutations } from "./tracker-github-write.ts";
 import { stringify } from "yaml";
 import type { Fields, Issue, Stage, Tracker, TrackerOptions } from "./tracker.ts";
@@ -80,6 +81,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 			slug, claimedBy: receipt?.claim?.assigneeId === user.id ? receipt.claim.claimedBy : "github:" + user.login,
 		}));
 		if (labels.has("no-drive")) fields.drive = "none";
+		else if (metadata.drive === "always") fields.drive = "always";
 		// Priority is the tracker convention's p1|p2|p3 label; there is no deferral value.
 		const priorities = [1, 2, 3].filter(value => labels.has("p" + value));
 		requireGithub(priorities.length <= 1, slug + ": contradictory priority labels: " + priorities.map(value => "p" + value).join(", "));
@@ -138,14 +140,19 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		const kids = [...all.values()].filter(child => child.partOf === slug);
 		const receipt = node.receipt;
 		if (node.native.state === "OPEN" && parseAssignee(node.assignee)?.kind === "agent") {
-			node.stage = kids.length ? null : node.partOf ? "ticket" : "spec";
+			node.stage = kids.length ? null : "ready";
+			// A delegated root with no children starts by decomposing, as the former default stage spec did.
+			let decompose = !kids.length && !node.partOf;
 			if (receipt && Object.hasOwn(receipt, "stage")) {
-				requireGithub(receipt.stage === null || receipt.stage !== undefined && ["idea", "goal", "ticket", "spec"].includes(receipt.stage), slug + ": invalid open-issue stage override");
-				node.stage = receipt.stage;
+				requireGithub(receipt.stage === null || knownStage(receipt.stage) && normalizeStage(receipt.stage) !== "done", slug + ": invalid open-issue stage override");
+				node.stage = receipt.stage === null ? null : normalizeStage(receipt.stage)!;
+				// Receipts written before lib/stage.ts can hold legacy names.
+				decompose = (receipt.stage as string | null) === "spec";
 			}
+			if (typeof node.fields.decompose !== "boolean" && node.stage === "ready" && decompose) node.fields.decompose = true;
 		}
 		requireGithub(node.stage !== null || kids.length > 0, slug + ": omitted residual requires children");
-		requireGithub(node.stage === null || ["idea", "goal", "spec", "ticket", "done"].includes(node.stage), slug + ": invalid receipt stage");
+		requireGithub(node.stage === null || (STAGES as readonly string[]).includes(node.stage), slug + ": invalid receipt stage");
 	}
 	// Same graph safety as the vault: containment, dependency and combined
 	// completion cycles are distinct, and all local endpoints must exist.
@@ -167,7 +174,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 }
 
 function projection(all: Map<string, GithubNode>): Map<string, Issue> {
-	const stages: Stage[] = ["idea", "goal", "spec", "ticket", "done"];
+	const stages: readonly Stage[] = STAGES;
 	const kids = (slug: string) => [...all].filter(([, node]) => node.partOf === slug).map(([slug]) => slug);
 	const effective = new Map<string, Stage>();
 	function resolve(slug: string): Stage {
@@ -192,7 +199,7 @@ function projection(all: Map<string, GithubNode>): Map<string, Issue> {
 		const selectors = remaining.map(id => ({ slug: id, assignee: all.get(id)!.assignee }));
 		const eligible = remaining.length > 0 && selectors.every(selector => parseAssignee(selector.assignee)?.kind === "agent");
 		const effectiveStage = effective.get(slug)!;
-		const ready = effectiveStage === "spec" || effectiveStage === "ticket";
+		const ready = effectiveStage === "ready";
 		return [slug, {
 			slug, archived: false, ownStage: node.stage, effectiveStage, partOf: node.partOf,
 			assignee: node.assignee, author: typeof node.fields.author === "string" ? node.fields.author : null,

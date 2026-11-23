@@ -2,6 +2,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { findWorker, integrate, type Handle } from "../dispatch.ts";
 import type { Issue, Tracker } from "../tracker.ts";
+import { STAGES, normalizeStage } from "../stage.ts";
 import { bbThreads } from "../thread/bb.ts";
 import { checkout } from "../thread/git.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
@@ -139,11 +140,11 @@ async function discard(context: RefinementContext, handle: string): Promise<void
 			if (parent.slug === attempt.node) {
 				const stage = attempt.parentFields.stage;
 				if (typeof stage !== "string") throw new Error("No saved residual stage for " + parent.slug);
-				context.tracker.update(parent.slug, { stage });
+				context.tracker.update(parent.slug, { stage, decompose: attempt.parentFields.decompose ?? null });
 			} else if (stillOwned(context, attempt, rows).some(row => row.slug === parent.slug)) {
 				// A provisional container has no saved residual of its own. Give it
 				// a temporary executable residual before pruning its final child.
-				context.tracker.update(parent.slug, { stage: "spec" });
+				context.tracker.update(parent.slug, { stage: "ready", decompose: true });
 			} else throw new Error("Cannot restore an unowned omitted-stage container: " + parent.slug);
 			context.save();
 		}
@@ -235,12 +236,12 @@ function validateAcceptance(context: RefinementContext, handle: string, children
 	const direct = [...rows.values()].filter(row => row.partOf === node.slug && !row.archived && !row.done).map(row => row.slug);
 	if (new Set(children).size !== children.length || children.length !== direct.length || children.some(slug => !direct.includes(slug)))
 		throw new Error("Reported refinement children do not match open direct children: " + direct.join(", "));
-	const stages = ["idea", "goal", "spec", "ticket", "done"];
-	const original = typeof attempt.parentFields.stage === "string" ? attempt.parentFields.stage : "spec";
+	const stages: readonly string[] = STAGES;
+	const original = normalizeStage(attempt.parentFields.stage) ?? "ready";
 	if (!node.ready || stages.indexOf(node.effectiveStage!) < stages.indexOf(original))
 		throw new Error("Refinement lowered the effective stage: " + node.slug);
-	if (!children.length && (node.ownStage !== "ticket" || node.effectiveStage !== "ticket"))
-		throw new Error("Empty refinement report is not a ticket promotion: " + node.slug);
+	if (!children.length && (node.ownStage !== "ready" || node.effectiveStage !== "ready" || fields.decompose === true))
+		throw new Error("Empty refinement report is not a promotion (stage ready, decompose: false): " + node.slug);
 	const baseline = new Set(attempt.baseline);
 	const scope = subtree(rows, node.slug);
 	for (const row of scope) {
@@ -258,7 +259,7 @@ function validateAcceptance(context: RefinementContext, handle: string, children
 			// Starting a run delegates an unassigned root, but never its children.
 			const delegatedRoot = row.slug === context.state.root && !row.assignee && row.selectors.every(selector =>
 				selector.slug === row.slug || selector.assignee === "agent" || selector.assignee?.startsWith("agent:") || selector.assignee?.startsWith("model:"));
-			if (!row.ready || (!row.eligible && !delegatedRoot) || (row.ownStage !== null && !["spec", "ticket", "done"].includes(row.ownStage)))
+			if (!row.ready || (!row.eligible && !delegatedRoot) || (row.ownStage !== null && !["ready", "done"].includes(row.ownStage)))
 				throw new Error("Non-executable refinement contract: " + row.slug);
 			if (!context.tracker.text(row.slug).trim()) throw new Error("Empty refinement child contract: " + row.slug);
 		}

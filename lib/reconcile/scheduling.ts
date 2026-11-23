@@ -1,4 +1,5 @@
 import type { Issue } from "../tracker.ts";
+import { STAGES } from "../stage.ts";
 import type { LandingLedger } from "./tracker-state.ts";
 
 /** Private run view. done remains canonical; satisfied is collector-local. */
@@ -24,7 +25,7 @@ export interface SchedulingContext {
 /** Rebuild lifecycle rollups from ownStage/relations/guards and own claims.
  * No mutations of global rows and no branch or tracker IO. */
 export function schedulingView(global: ReadonlyMap<string, Issue>, context: SchedulingContext): Map<string, ScheduledIssue> {
-	const stages = ["idea", "goal", "spec", "ticket", "done"] as const;
+	const stages = STAGES;
 	const children = new Map<string, Issue[]>();
 	for (const row of global.values()) if (row.partOf) {
 		const siblings = children.get(row.partOf) ?? [];
@@ -77,7 +78,7 @@ export function schedulingView(global: ReadonlyMap<string, Issue>, context: Sche
 		const eligible = remaining.length > 0 && remaining.every(node => node.assignee === "agent"
 			|| node.assignee?.startsWith("agent:") || node.assignee?.startsWith("model:"));
 		const effectiveStage = effective.get(row.slug)!;
-		const ready = effectiveStage === "spec" || effectiveStage === "ticket";
+		const ready = effectiveStage === "ready";
 		const deferred = nodes.some(node => node.priority === 4);
 		projected.set(row.slug, {
 			...row, blockedBy: [...row.blockedBy], guards: [...row.guards],

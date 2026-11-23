@@ -29,7 +29,7 @@ test("foreign handoff commits hold closing until the configured loaded checkout 
 			result: reviewedResult(null, { commit: record, summary: "Foreign implementation reviewed" }, "done\n\ncommit: " + record + " # foreign fix " + commit),
 			tests: [] })).ok).toBe(true);
 		expect(() => closeAtTarget(context)).toThrow("not installed in loaded checkout " + loaded);
-		expect(f.tracker.fields("foreign").stage).toBe("ticket");
+		expect(f.tracker.fields("foreign").stage).toBe("ready");
 		expect(context.state.results.foreign.closedAt).toBeUndefined();
 
 		// Runtime's exception callback holds without throwing and is retried on
@@ -72,7 +72,7 @@ test("landings carry leaf results to the owner, replay merged code and incomplet
 		expect((await landReviewed(context, { slug: "leaf", into: "root", worker: leaf, workers: [leaf],
 			result: leafResult, tests: [] })).ok).toBe(true);
 		closeAtTarget(context);
-		expect(f.tracker.fields("leaf").stage).toBe("ticket");
+		expect(f.tracker.fields("leaf").stage).toBe("ready");
 		expect(f.tracker.snapshot().get("outside")?.frontier).toBe(false);
 		expect(context.state.landed.leaf.into).toBe("root");
 		finishLandingCleanup(context, "leaf");
@@ -153,7 +153,7 @@ test("a close holds on a cited packet that exists only on a drive branch, names 
 		context.holdEvidence = (slug, text) => { held.push(slug); expect(text).toContain("docs/attachments/held/index.md"); expect(text).toContain(packetCommit); };
 		closeAtTarget(context);
 		expect(held).toEqual(["held"]);
-		expect(f.tracker.fields("held").stage).toBe("ticket");
+		expect(f.tracker.fields("held").stage).toBe("ready");
 		expect(context.state.results.held.closedAt).toBeUndefined();
 		expect(f.tracker.fields("stale").stage).toBe("done");
 		expect(context.state.results.stale.closedAt).toBeTruthy();
