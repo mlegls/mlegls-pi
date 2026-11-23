@@ -21,6 +21,8 @@ Pickup: when the user enables it for a scope, `pickup({scope, budget?})` makes t
 
 Attach persistent product constraints with `reconcile_constrain({issue, node, text})`. For instructions addressed to one worker phase, add `phase` (`refine`, `implement`, `drive`, `review`): only that phase gets the mail or first-prompt constraint, including on retry. A ticket whose first use is the user's own live setup should say in its body what drive and review may and may not redo there.
 
+Archive a child's thread the turn its work lands or comes back to you; a done child left open reads to me as stuck.
+
 Between mails, end your turn: the reconciler's mail wakes you. Don't poll or narrate. Work outside the tracker still goes through `dispatch` and `merge` (`multi-agent`).
 
 The user sets the root's concurrency budget; each reconciler's `budget` counts against it.

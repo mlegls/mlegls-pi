@@ -44,6 +44,8 @@ axi tools are agent-ergonomic clis on PATH. running one with no args shows live 
 
 please commit directly in coherent chunks as you change files rather than waiting for me to say so. i'll just revert them if they're that bad (rare)
 
+do the obvious next step if the only thing i could say would be yes.
+
 and some really universal counter-defaults:
 
 nobody except us can see our conversation. so make sure prose edits, comments, and anything that stays in the filesystem (even code changes/organization) stands alone in its real/project context.
