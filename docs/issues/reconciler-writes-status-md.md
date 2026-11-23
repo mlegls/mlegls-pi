@@ -3,11 +3,6 @@ stage: "done"
 assignee: "agent"
 author: "session:01a15212-f5c4-72f9-98e1-e4e2ab51097c"
 ---
----
-stage: "ticket"
-assignee: "agent"
-author: "session:01a15212-f5c4-72f9-98e1-e4e2ab51097c"
----
 The reconciler keeps `desk/STATUS.md` (an untracked folder at the root of its target's main checkout) up to date, so the maintainer can see progress in bb without asking the supervisor.
 
 Decided 2026-10-19 by the maintainer, while planning to drop reconciler workers' child-completion notices to the supervisor (`replace-the-board-with-bb-mail`). Those notices cost $640 in one week; the record they narrated is already in the reconciler's state and log (`reconcile_status`), but only as JSON behind a supervisor turn.
