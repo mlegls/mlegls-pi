@@ -3,7 +3,7 @@ stage: "ticket"
 assignee: "agent:technical"
 author: "session:01a20621-fdb8-74d3-8ab0-6ecb91858267"
 part-of: "[[projects/mlegls-pi/issues/promised-wake-turns-end-with-nothing-to-wake-them]]"
-claimed-by: "reconcile:promised-wake-turns-end-with-nothing-to-wake-them/promised-wake-turns-end-with-nothing-to-wake-them-refine-2"
+claimed-by: "reconcile:promised-wake-turns-end-with-nothing-to-wake-them"
 priority: 2
 ---
 When BB releases an idle Pi runtime while a managed process (pi-processes) is still live, the thread that started it gets a new turn without user input: either the process's completion wakes it, or the process's loss is announced to it. Part of [[projects/mlegls-pi/issues/promised-wake-turns-end-with-nothing-to-wake-them]], which quotes the three threads that waited 15–21 hours for a wake that never came.
