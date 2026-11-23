@@ -24,3 +24,12 @@ Also run on the final head: `bun test lib/reconcile/refinement.test.ts lib/recon
 - At the join, `RefinementAttempt` dropped the provisional fields and legacy phases. The pre-landing run-state scan on 2026-11-23 found only terminal attempts: Concept 118 accepted / 20 removed; mlegls-pi 7 accepted / 1 removed.
 
 GitHub join replay: `bun docs/attachments/refinement-creates-children-atomically-on-acceptance/github.ts`. Fake `gh` loses the first `createIssue` response after creating the provider. A fresh adapter and engine read the run from disk; the resulting issues are `gh-2` (provider) and `gh-3` (consumer, blocked by `gh-2`). Two create calls total; only the interface commit reaches the collector.
+
+## Join review, 2026-11-23
+
+Merged collector `6c15e7aa` with `a28fe4b7` in `5554d90d`. The collector migrated a fixture for the removed provisional protocol; the merged file keeps the acceptance-recovery case. Drive was skipped.
+
+- `bun run typecheck` passed. `bun test lib/reconcile lib/tracker-github.test.ts` passed all 77 cases in 370 s.
+- Both replays above passed: on GitHub exactly two remote creates despite losing the first reply; on the vault a SIGKILL between the first create and its receipt, a byte-identical stop, and a promotion followed by implement. The replay also checks that a vault child retains priority 4 (`78ce1585`); GitHub permits only priorities 1–3.
+- `7dc88b70` shares the vault's slug and issue-wikilink grammar with proposal parsing. Typecheck, the tracker CLI / refinement / GitHub tests (43 cases), and the GitHub seam replay passed after this tidy.
+- Immediately before review handoff, scanning `.refinements[] | .phase` across `.git/reconcile/*.json` showed Concept: 118 accepted, 20 removed; mlegls-pi: 7 accepted, 1 removed. No nonterminal attempt needs legacy token handling.
