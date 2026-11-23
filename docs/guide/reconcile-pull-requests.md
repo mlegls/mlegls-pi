@@ -1,59 +1,50 @@
 # Landing a reconciled tree through a pull request
 
-Use an owned GitHub repository with ordinary `gh` authentication, push access, a fetched default branch and working checks. The reconciler uses that repository's existing GitHub identity. For GitHub-tracked issues, the canonical checkout selects `# Issue tracker: GitHub` in `docs/agents/issue-tracker.md` and maps all five triage roles in `docs/agents/triage-labels.md`; canonical `docs/issues/` takes precedence. Use `gh-<number>` as ROOT (for example `gh-123`). Workers use the same global tracker commands as vault workers. Agent-ready native issues are reserved before workers start; collector/staging landings keep them open and assigned until target completion. GitHub requires a **different authorized person** to submit approval/changes-requested reviews; it prevents self-review. The merger acts outside the reconciler, using the repository’s ordinary authorization.
+Requires an owned GitHub repo with `gh` auth, push access, a fetched default branch, and checks. For GitHub-tracked issues (`# Issue tracker: GitHub` in `docs/agents/issue-tracker.md` plus `docs/agents/triage-labels.md`; local `docs/issues/` wins if present), pass `gh-<number>` as `ROOT`. Note that GitHub blocks self-review, so another authorized reviewer must approve or request changes.
 
-## Choose before starting
+## Landing mode and paths
 
-Commit `.pi/reconcile.json`:
+Configure `.pi/reconcile.json` in the owner checkout:
 
 ```json
-{"land":"pr-review"}
+{
+  "land": "pr-review",
+  "renderedPaths": ["packages/web/src/**", "landing/**", "packages/web/official/**/*.html", "*.css"],
+  "drivePaths": ["bin/**"]
+}
 ```
 
-The choices are `local` (default when absent), `pr-merge` and `pr-review`. The reconcile tool accepts `land`; CLI equivalent:
+- `land`: `local` (default), `pr-merge`, or `pr-review`. Overridable at start via `reconcile({ land })` or CLI `--land`. Resume preserves the saved mode and refuses a conflicting override.
+- `renderedPaths` / `drivePaths`: repo-relative globs (no slash matches basenames at any depth). Touching either triggers `drive`; touching `renderedPaths` with visual evidence routes review to `visual-reviewer` (joins still use `tidy`).
+
+CLI equivalents:
 
 ```sh
 bun lib/reconcile/main.ts start ROOT --owner thr_OWNER --budget 1 --land pr-merge --cwd /absolute/owner-checkout
 bun lib/reconcile/main.ts status --cwd /absolute/owner-checkout
 ```
 
-The captured mode survives restart. Starting without `--land` resumes the saved mode, not a subsequently changed project setting; explicitly requesting a different mode is refused. Restart via the same `start` command after a missing process. Do not use `stop` to simulate a crash: explicit stop retires resources and marks the run stopped.
+After a crash, re-run `start` to resume; `stop` explicitly retires workers and marks the run stopped.
 
-## Rendered review paths
+## PR wait behavior
 
-In any landing mode, set `renderedPaths` in the owner's committed `.pi/reconcile.json`. For Concept:
+Children land in collectors, then the root lands in a run-owned PR staging branch/worktree. Siblings can proceed while the PR waits, while external dependents and global issue status wait for remote merge. Ordinary workers retire during the wait; the reconciler polls about once a minute.
 
-```json
-{"renderedPaths":["packages/web/src/**","landing/**","packages/web/official/**/*.html","*.css"]}
-```
+Failing checks trigger bounded repair (shared budget: 2 repair workers, 3 integration attempts). Base and contributor updates merge into history without rebasing or force-pushing.
 
-Paths are repository-relative globs; a pattern with no slash matches basenames at any depth. Visual evidence invites `visual-reviewer` only when the reviewed Git range changes a matching file. With no match (or no paths configured), an ordinary reviewer still opens the shots; a join uses `tidy`.
+- **`pr-merge`**: requests a head-guarded merge commit once every reported check passes (including when no checks are configured). Choosing this authorizes any deploy workflow triggered by merge.
+- **`pr-review`**: never merges. A submitted review with unresolved inline threads triggers one automatic repair round and replies on each thread; ordinary PR comments don't, and a subsequent changes-requested review escalates to the owner.
 
-## What waiting means
+## Exceptions and completion
 
-The tree's children land in collectors, then one root branch lands in run-owned PR staging. This can unlock the next sibling, **not** a dependent outside the tree. Global issues and their original reviewed evidence remain pending until the remote target really receives the code. Status includes `land`, `pr.url`, PR number/branch, repair/review receipts and exceptions. Workers are retired during an idle PR wait; the reconciler polls about once a minute.
-
-Failing reported checks request a bounded repair. Base advancements and other people's branch pushes are merged into existing history, gated and normally pushed—never rebased or force-pushed. Live first use exposed GitHub's stale `baseRefOid`: the transport now observes the current base branch target before comparing fetched Git.
-
-- **pr-merge:** after every reported check passes (no reported checks means immediate eligibility), the reconciler requests a head-guarded **merge commit**. Merge can run deployment workflows. Choosing this mode authorizes that consequence.
-- **pr-review:** the reconciler never merges. A submitted review with unresolved inline threads can request a repair; individual ordinary PR comments do not. Repairs push gated changes and reply on every requested thread. Marker-only replies are not new human review requests. A later changes-requested submission after repair is an owner exception, not another automatic repair.
-
-## Owner exceptions and completion
-
-Inspect status before resolving. Closed-unmerged PRs are owner exceptions; issues stay open. Reopening and answering through the public resolution surface continues the same saved PR:
+Inspect `status` before resolving. Closed-unmerged PRs and transient GitHub transport errors raise owner exceptions without closing issues. Reopen (if closed) and acknowledge via `answer` to resume observing the same PR:
 
 ```sh
-bun lib/reconcile/main.ts resolve ROOT ROOT '{"action":"answer","note":"Owner acknowledges; await human merge"}' --cwd /absolute/owner-checkout
+bun lib/reconcile/main.ts resolve ROOT ROOT '{"action":"answer","note":"Reopened; await human merge"}' --cwd /absolute/owner-checkout
 ```
 
-A transient GitHub transport error (HTTP 5xx or a brief 404 on a just-pushed commit) also raises `PR observation/publication failed`; it never reads as passing or absent checks. Acknowledge it with the same `answer` resolution, with a note naming the transport error rather than a review state, and the reconciler re-observes the same saved PR (number, branch, repair and results unchanged).
+Use `retry` only after inspecting a failed repair's saved receipt/budget.
 
-For a repair needing another attempt use `retry` only after inspecting its saved request/budget; this is not permission to reset the tree or overwrite reviewed results. An acknowledged unresolved submitted review may still hold again; an exception does not prevent observing a subsequent human merge.
+Only `MERGED` metadata plus fetched base ancestry closes carried issues (child-first, preserving original review packets). Afterwards, a clean owner checkout on the base branch fast-forwards best-effort; dirty or other-branch checkouts are left alone.
 
-Only observed `MERGED` metadata plus fetched Git ancestry closes carried nodes, child-first, with their original result packets. The owner checkout is a best-effort mirror: fetch/fast-forward only if clean and on the captured base branch. Dirty, other-branch or divergent owners are left alone; they do not prevent remote-target completion.
-
-## Rehearsal and evidence
-
-[Native GitHub tracker evidence](../attachments/rehearse-github-tracked-reconcile/index.md), [combined join evidence](../attachments/land-reconciled-trees-through-pull-requests/index.md) and [owned live PR rehearsal](../attachments/rehearse-reconciled-github-pr-landings/index.md) record the 2026-10-14 scratch runs. Their one-off controllers use the retired board runtime; replay them at their recorded revisions, not current HEAD.
-
-For current bb coordination, see the [live local reconcile encounter](../attachments/move-coordination-off-the-board/index.md). New PR rehearsals need an owned scratch repository, existing `gh` authentication and bb thread IDs, using the current CLI above.
+For current BB-based local reconciliation, see [move-coordination-off-the-board](../attachments/move-coordination-off-the-board/index.md).

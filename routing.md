@@ -1,49 +1,42 @@
 ## Agent model lists
 
-Each agent file's `model:` is a list of `provider/model:effort`, most preferred first. A BB provider prefix names a native worker (`codex/gpt-6.2-sol:high`, `acp-antigravity/gemini-4-neon:high`); other entries are Pi models (`openai/gpt-6.2-sol:high`). A mixed list takes the first available model with delegated capacity left (`allocation.json`). A list of only Pi models still runs as `stance/<agent>`, with Pi selecting the model. A typed rate-limit from a non-Pi worker makes the reconciler replace it from the remainder of that stance's list. A `model:<provider>/<model>:<effort>` assignment is exact. The reasoning behind the lists is in `docs/models.md`.
+Each agent file's `model:` is a preferred-first list of `provider/model:effort`. A BB provider prefix names a native worker (`codex/gpt-6.2-sol:high`, `acp-antigravity/gemini-4-neon:high`); other entries are Pi models (`openai/gpt-6.2-sol:high`). Mixed lists pick the first entry with delegated capacity left (`allocation.json`); Pi-only lists run as `stance/<agent>`, with Pi selecting the model. On a typed rate-limit from a native worker, the reconciler replaces it from the rest of the list. A `model:<provider>/<model>:<effort>` assignment is exact. Model rationale lives in [docs/models.md](docs/models.md).
 
 ## Assignment stances
 
-Choose the stance whose deliverable fits, for the lowest wall time to accepted completion at similar total cost and sufficient quality, including verification, retries and escalation. Consider openness, subjectivity, scope, novelty and technical difficulty together, not as an ordered decision tree. Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes back to shaping; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them; campaign supervisors delegate substantial work.
+Pick the stance whose deliverable fits for the lowest wall time to accepted completion at comparable cost, accounting for verification, retries and escalation. Keep trivial known diffs local when handoff costs more than doing them; send missing design outside delegated authority back to shaping.
 
-- `auto-routine`: Decided outcome; routine implementation, whether or not it needs repository discovery.
-- `technical`: Clear acceptance criterion but difficult technical fulfillment, including novel algorithms, complex systems, or exacting UI implementation.
-- `ui`: Work where design taste must actually be exercised: choosing interaction, hierarchy, affordances, state legibility, or visual design. Not implementation from an existing design or simple UI adjustments with settled intent; use `auto-routine` or `auto` with luna or sol when sufficient, and `technical` for hard technical fulfillment. Keep rendered acceptance with `visual-reviewer` on Opus.
-- `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
-- `manager`: Refines a spec: promotes it, or partitions it into outcomes, children `auto`/`auto-routine`/`technical` or further specs.
-- `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
-- `tidy`: Review at a join: repair crossing stories at their seams, then behavior-preserving tidying across the changes that landed together.
-- `research`: Find and compress evidence for an upstream decision; research is the deliverable.
-- `reviewer`: Review a change against its contract (and the driver's log when there is one) and repair it directly; non-visual work.
-- `verify`: Drive changed behavior as its user would, without reading the implementation; write predictions before first use; record outcomes, frictions, expectations and replayable checks.
-- `visual-reviewer`: Review and repair work whose acceptance is what a user sees: rendered surface, layout, visual coherence, usability. It also makes aesthetic improvements to the surface the change renders, not only corrections. In the reconciler it is eligible when the driver's packet is visual and the reviewed range touches a configured rendered path.
+- `auto-routine`: Decided outcome; routine implementation (even if it needs repo discovery).
+- `technical`: Crisp acceptance criterion with hard technical fulfillment (novel algorithms, complex systems, exacting UI).
+- `ui`: Unsettled interaction or visual design where taste must be exercised. Use `auto-routine` or `auto` for settled UI changes, `technical` for hard UI engineering; `visual-reviewer` holds rendered acceptance on Opus.
+- `auto`: Open approach within delegated authority; the worker owns the how.
+- `manager`: Refines a `decompose: true` issue—splits it into outcome-sized ready children, or clears `decompose` when it fits one session.
+- `prune`: Subtractive refactoring or simplifying replacement against surviving interfaces.
+- `tidy`: Join review—repairs crossing stories at their seams, then behavior-preserving tidying across landed children.
+- `research`: Finds and compresses evidence for an upstream decision.
+- `reviewer`: Reviews a change against its contract (and driver log if present) and repairs gaps directly; non-visual work.
+- `verify`: Drives changed behavior as its user without reading the implementation; writes predictions before first use and records outcomes, frictions, expectations and replayable checks.
+- `visual-reviewer`: Reviews and repairs rendered UI work by looking at the screenshots; may also improve the rendered surface's aesthetics. Used by the reconciler when the packet is visual and the diff touches a configured rendered path.
 
 ## Continuation actions
 
-Relevant warm context has future value; spent tokens are sunk cost. Compare remaining cost to accepted completion, including cached/uncached input, handoff preparation, rediscovery, verification, and repair. Use observed cache telemetry where available; unknown cache hits, expiry, or quota are not free capacity. A provider past its delegated share (`allocation.json`) is unavailable for continued delegated work.
+Spent tokens are sunk cost; compare remaining cost to accepted completion (cache telemetry, handoff, rediscovery, verification, repair). A provider past its delegated share in `allocation.json` is unavailable for continued delegated work.
 
-- `continue`: The current session can finish within its authority and its relevant context is worth retaining. Keep its model; routine continuation needs no fresh admission decision.
-- `consult`: A bounded decision or specialist investigation can unblock the current session. A small evidence packet suffices for a separate expert session, after which the warm session can resume.
-- `replace`: The current approach, capability, or accumulated context is no longer useful enough. A fresh session from an updated ticket and compacted/OM-backed handoff is preferable to retaining the current session.
+- `continue`: Current session can finish within its authority and its warm context is worth keeping.
+- `consult`: A bounded decision or specialist read will unblock the warm session via a small handoff packet.
+- `replace`: Fresh session from an updated issue and compacted/OM handoff beats keeping the current session.
 
 ## Session economics
 
-Route model/effort at fresh-session boundaries. Escalation normally creates a consultation or replacement session rather than changing the model over an uncompacted history. Compacted parent context, OM references with recoverable evidence, and small self-contained handoffs make fresh routing economical; they do not guarantee cache reuse or preserve every constraint. Never assume the new session inherits the parent's memory, uncommitted files, or cache.
-
-The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design.
-
-## Session roles
-- Fresh delegated sessions use their agent's model list; the `prune` stance is the simplifying-replacement route.
-- Routing places delegated assignments and identifies closure gaps; it does not choose an interactive session's purpose.
-- A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
+Route model/effort at fresh-session boundaries (consult or replace rather than switching models mid-history). Fresh sessions inherit no memory, uncommitted files, or prompt cache—rely on the issue and a concise handoff.
 
 ## Active catalog (list prices, $/MTok in/out; cache-read in parens)
-- fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): 10/50 (0.25).
-- gpt 6.2 astra (`openai/gpt-6.2-astra`; efforts low/medium/high/xhigh/max): 8/40 (0.4).
-- sonnet 5.5 (`anthropic/claude-sonnet-5-5`; efforts low/medium/high/xhigh): 2/10 (0.2).
-- opus 5.5 (`anthropic/claude-opus-5-5`; efforts low/medium/high/xhigh/max): 4/20 (0.2).
-- gpt 6.2 sol (`openai/gpt-6.2-sol`), luna (`openai/gpt-6-luna`); efforts low/medium/high/xhigh/max. sol: 2/10 (0.1); luna: 0.1/0.5 (0.01). Prompts above 272K input tokens have higher API rates; subscription capacity is not list-price spending.
-- deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003).
-- grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5).
 
-- GLM 5.3 Flash (`zai/glm-5.3-flash`; efforts high): Z.ai Coding Plan subscription. Compare measured subscription consumption and accepted-task wall time, not an assumed zero cost or API list-price equivalence.
+- fable 5.1 (`anthropic/claude-fable-5-1`; low/medium/high): 10/50 (0.25).
+- gpt 6.2 astra (`openai/gpt-6.2-astra`; low/medium/high/xhigh/max): 8/40 (0.4).
+- sonnet 5.5 (`anthropic/claude-sonnet-5-5`; low/medium/high/xhigh): 2/10 (0.2).
+- opus 5.5 (`anthropic/claude-opus-5-5`; low/medium/high/xhigh/max): 4/20 (0.2).
+- gpt 6.2 sol (`openai/gpt-6.2-sol`), luna (`openai/gpt-6-luna`); low/medium/high/xhigh/max. sol: 2/10 (0.1); luna: 0.1/0.5 (0.01). Prompts over 272K input tokens carry higher API rates; ChatGPT subscription usage is separate from API list price.
+- deepseek 4.1 flash (`deepseek/deepseek-flash`; low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003).
+- grok 4.6 (`xai/grok-4.6`; low/high): 2/6 (0.5).
+- GLM 5.3 Flash (`zai/glm-5.3-flash`; high): Z.ai Coding Plan subscription; compare actual subscription consumption and wall time rather than API list prices.

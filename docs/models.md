@@ -1,27 +1,22 @@
 # Models
 
-Reasoning behind the `model:` lists in `agents/`. The router doesn't read this; read it when writing or revising a model list. How much of each provider delegated work may use is `allocation.json`. Valid `provider/model:effort` pairs are the Active catalog in `routing.md` (IDs from `pi --list-models`).
+Rationale for the `model:` lists in `agents/`. The router doesn't read this; consult it when tuning a stance. Delegated capacity limits live in `allocation.json`, and valid `provider/model:effort` IDs live in [routing.md](../routing.md) (from `pi --list-models`).
 
 ## Capacity
 
-Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
+Prefer available subscription capacity before metered spend:
 
-- Bias delegated work toward `openai`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
-- Split by lab strength. Anthropic models hold a clear advantage on long-context work and on carrying a goal through to completion; OpenAI models excel on well-scoped tasks but more often stop abruptly or drift. Route judgment over a whole picture to Anthropic (triage, review, consolidation at a join) and bounded execution to `openai` (implement, drive). Supervision compacts once its cache goes stale, so it is closer to a sequence of bounded decisions and goes to `openai`.
-- Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
-- Metered providers are overflow when appropriate.
-- OpenAI models use only the `openai` provider signed in with ChatGPT (`/login`, Sign in with ChatGPT), which bills the subscription; `openai` with an API key is metered and not in the routing catalog. The legacy `openai-codex` provider is superseded.
+- Bias delegated execution toward `openai` (signed in via ChatGPT `/login`, which uses the subscription; metered API-key `openai` is outside the catalog, and `openai-codex` is retired). Abundant resets make it the main worker pool while preserving interactive headroom.
+- Split by lab strength: Anthropic holds an edge on long-context coherence and seeing a goal through; OpenAI excels on bounded tasks but stops early or drifts more often on open-ended spans. Route whole-picture judgment (triage, review, join consolidation) to Anthropic and bounded execution (implement, drive) to `openai`. Compaction turns supervision into a sequence of bounded decisions, so it also fits `openai`.
+- Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics warrant them; treat metered providers as overflow.
 
 ## Models
 
-- Use Opus 5.5 for interactive work, the top-level long-context supervisor, difficult and very long-context delegated work, and visual review—not UI implementation merely because it touches a rendered surface. A reviewer is stronger than its implementer and from another lab (maintainer, 2026-11-23): the maintainer's routing (2026-11-23) is `auto` Sol high, `auto-routine` and `prune` Sol medium, `verify` Sol low, `technical` Astra medium, `ui` Sol high, `reviewer` Opus 5.5 medium, `visual-reviewer` Opus 5.5 medium, `tidy` Astra medium, and spec refinement (`manager`) Gemini 4 Neon high through Antigravity, falling back to Opus; for UI, the Opus visual reviewer holds taste at acceptance and may improve on it.
-- Sonnet 5.5 spends many output tokens per task (about 193K per Intelligence Index task at max, the most Artificial Analysis has measured). It sits off the cost-per-task Pareto frontier: at xhigh/max Opus 5.5 delivers the same for less, and at low/medium GPT-6.1-sol does. High is its most competitive setting. It is not monotonic in effort: max scores below xhigh on FrontierCode (it fans out to subagents and makes out-of-scope edits). It matches Opus 5.5 on agentic terminal and knowledge-work benchmarks but trails on factual knowledge and scientific reasoning, with a lower hallucination rate. Avoid Sonnet 5.5 max.
-- Opus 5.5 is better than Fable 5.1 on most work. Fable's possible niche is diversity of thought / range of possibilities in interactive exploration, not ordinary non-interactive assignments.
-- GPT-6.1-sol sits about one Intelligence Index point below astra at under a quarter of astra's cost per task, and every effort level is on the cost-efficiency frontier. It is the default for difficult non-visual work. Use astra where its remaining lead is worth the price: technical work and consolidation at a join (`technical`, `tidy`).
-- Use luna or sol when sufficient, accounting for retries and parent repair rather than optimizing token price alone.
+- **Opus 5.5**: interactive work, top-level long-context supervision, hard/long-context delegated tasks, and visual review. Current routing (maintainer, 2026-11-23): `auto` Sol high, `auto-routine`/`prune` Sol medium, `verify` Sol low, `technical`/`tidy` Astra medium, `ui` Sol high, `reviewer`/`visual-reviewer` Opus 5.5 medium (reviewer stronger than implementer and cross-lab; visual reviewer holds taste and may improve aesthetics), `manager` Gemini 4 Neon high via Antigravity falling back to Opus.
+- **Sonnet 5.5**: verbose (~193K output tokens per Intelligence Index task at max) and off the cost-per-task Pareto frontier—Opus 5.5 beats it at xhigh/max, GPT-6.2-sol beats it at low/medium. `high` is its only competitive setting; avoid `max` (non-monotonic on FrontierCode: fans out and makes out-of-scope edits). Matches Opus 5.5 on agentic terminal/knowledge work with lower hallucination, trails on factual knowledge and scientific reasoning.
+- **Fable 5.1**: Opus 5.5 beats it on most work; Fable's niche is divergent interactive exploration.
+- **GPT-6.2-sol / Astra / Luna**: Sol sits ~1 Intelligence Index point below Astra at under a quarter of the cost per task, with every effort on the efficiency frontier—the default for hard non-visual work. Reserve Astra for where its margin pays off (`technical`, `tidy`). Use Luna or Sol when sufficient, judging by retries and repair cost rather than token price.
 
 ## Evaluating
 
-Distinguish visual perception, GUI grounding, interactive computer use, and visual judgment; also consider tool/harness compatibility, data-use permissions, effort-specific evidence, and subscription availability. An aggregate benchmark rank or token price alone is not an admission rule.
-
-Evaluate a model list by accepted completion, total workstream cost and wall time, parent repair, and escalation/handoff loss, not token price alone. Compare strong-from-start against cheap-then-consult/replace.
+Separate visual perception, GUI grounding, interactive computer use and visual judgment, and factor in harness compatibility, data-use terms, effort-specific behavior and subscription capacity. Judge a model list by accepted completion, total wall time and cost, parent repair, and handoff loss—comparing strong-from-start against cheap-then-consult/replace.

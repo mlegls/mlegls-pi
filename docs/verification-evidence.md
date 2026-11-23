@@ -1,28 +1,26 @@
 # Verification evidence
 
-Supervision runs implement → (drive, when the diff touches a declared user surface or the issue says `drive: always`) → review → integration, each step an agent role (`agents/roles/`). When driven, the driver uses the changed product as its user would without reading the implementation, writes its predictions before first use, commits the packet below with its frictions, expectations and replayable checks, and repairs nothing. The reviewer reads that log together with the diff (or checks the diff and implementer's run directly when drive was skipped), repairs directly, re-drives what it changed and updates the packet. Integration uses the reviewer's handoff and runs its tests on the final head. Backend-only journeys use API, CLI or library evidence; rendered journeys route to a visual reviewer.
+Supervision runs `implement → (drive when the diff touches a declared user surface or the issue says drive: always) → review → integrate`, each an agent role in `agents/roles/`. When driven, the driver uses the product blindly without reading the implementation, writes predictions before first use, commits the packet below, and repairs nothing. The reviewer reads that packet alongside the diff (or checks the diff and implementer's run directly when drive was skipped), repairs gaps directly, re-drives what it changed, and updates the packet. Integration runs the reviewer's listed tests on the final head.
 
-The setup handoff states the task-required environment beside what was actually prepared: deployment kind, non-secret target identifier and checkout ownership, persona/auth (env-var names only), seed/state, launch command or entry URL, and observed readiness. Task requirements override generic local defaults; reuse the project's setup tooling, confirm inherited selectors point to the intended checkout-owned target before reuse or destructive seeding, and finish authorized preparation rather than handing it back. Never commit credentials or private account data in evidence.
+## Setup handoff
 
-> No: task asks for Cloud auth; worker runs anonymous-local default or seeds an inherited URL without verifying checkout ownership.
-> Yes: verify the selector belongs to this worktree's target, run the project's Cloud setup, record target ID and readiness (no secret values), and drive.
+Record what the task required beside what was actually prepared: deployment kind, non-secret target ID and checkout ownership, persona/auth (env-var names only), seed/state, launch command or entry URL, and observed readiness. Task requirements override local defaults—verify inherited selectors belong to this worktree's target before reuse or destructive seeding, finish authorized setup yourself, and never commit credentials or private account data.
 
 ## Packet
 
-Commit a small packet under `docs/attachments/<ticket>/`, linked from the ticket's Result. Prefer a Markdown index and selected images over a transcript dump. `.wm/` is scratch storage and disappears with the worktree. Every worktree checks out every packet, and the repository keeps them forever in history: selected means a few images per journey (WebP or reduced PNG), not one per action. Code a test imports moves beside the test rather than staying in the packet. Once the ticket is done and no story, guide or open issue links the packet, gardening may remove it from HEAD; the Result's link then pins the last commit that had it.
+Commit a compact packet under `docs/attachments/<ticket>/`, linked from the issue's Result. Every worktree checks out every packet and Git keeps them forever, so keep only a Markdown index and a few selected images (WebP or reduced PNG). Move code imported by tests beside the tests. Once the issue is done and nothing live links the packet, gardening may drop it from HEAD and pin its last commit in Result.
 
-Don't commit raw machine output (runner JSON, per-case outcome lists, action or runtime logs) for intermediate rounds. The index states the counts, names each failure with its excerpt, and gives the command that reproduces the run at the tested revision. Commit a raw file only when it is itself the evidence for a claim the index can't carry, and only the final round's. A repeated run replaces its predecessor's file rather than adding a sibling.
+Avoid committing raw machine dumps (runner JSON, verbose action/runtime logs) for intermediate rounds; summarize counts, failure excerpts and the reproducing command in the index, and replace rather than accumulate files across rounds.
 
 The index records:
-
 - Tested revision, setup and reproduction entry point.
-- Each required claim: action, observed result, evidence link and any gap.
-- Captioned screenshots at the meaningful states of the changed journey; viewport, locale and edition where relevant. Distinguish live interaction, seeded/restored state and mocked fixtures.
-- API/DOM state or a linked Playwright trace when screenshots cannot establish the claim. A final frame does not prove a transient state or temporal behavior.
+- Each required claim: action, observed result, evidence link, and any gap.
+- Captioned screenshots at meaningful states (with viewport, locale and edition when relevant), noting live vs seeded vs mocked state.
+- API/DOM state or a Playwright trace when static frames can't prove transient or temporal behavior. `bun ~/dev/mlegls-pi/lib/cards.ts <shots-dir>` builds labeled contact sheets while keeping originals.
 
-A few well-chosen frames usually suffice. Keep broad device/locale matrices and hypothesis-driven audits separately scoped. Existing Playwright recording and `bun ~/dev/mlegls-pi/lib/cards.ts <shots-dir>` cover traces and labeled contact sheets; preserve the originals for close inspection.
+### Handoff schema
 
-For supervised driving and review, use this handoff (paths are repository-relative files, not directories). The driver adds `frictions`, `expectations` and `checks`, omits `tests` and may report `failed` stories; the reviewer lists any kept or authorized test files changed and re-drives what its repairs changed itself:
+Use repo-relative file paths (never directories). The driver adds `frictions`, `expectations` and `checks`, omits `tests`, and may report `failed` stories; the reviewer lists kept/changed test files and re-drives its own repairs:
 
 ```yaml
 stories:
@@ -41,11 +39,11 @@ tests:
 caveats: []
 ```
 
-Use `held`, `failed` or `unobservable` exactly. For a nonvisual journey set `visual: false` and `shots: []`; still commit the evidence index. Any rendered UI journey is visual, even if the collector's checks use DOM assertions. Report every required claim, not just the ones that passed. An honest description of missing measurements is not the requested measurement: end `blocked`, or obtain an explicit contract change. Caveats do not waive acceptance requirements.
+Outcomes are strictly `held`, `failed` or `unobservable`. Nonvisual journeys use `visual: false` and `shots: []` (still commit the index); any rendered UI journey is `visual: true`. Report every required claim. Missing measurements stay `unobservable` and end `blocked` unless the contract changes; caveats don't waive acceptance.
 
 ### Post-landing gates
 
-Declare checks in the ticket's `post-landing` metadata when the target update itself triggers an external outcome. Name the run owner as the person who will verify the gate in the ticket body. A check runnable against the candidate (including reading a recipe or running its local equivalent) belongs in review.
+When an outcome is observable only after the target updates (CI, deploy, publish, mirror), declare `post-landing` in issue metadata and name the run owner in the body:
 
 ```yaml
 post-landing:
@@ -55,21 +53,14 @@ post-landing:
     check: Find the deploy triggered by the target update and fetch /docs.md from that deployment; expect 200 and the candidate content.
 ```
 
-Triggers are `target-ci`, `target-deploy`, `target-publish`, and `target-mirror`. The reviewer reports `blocked` with the exact `story` as `unobservable` and `postLanding: [live-docs]`. Include all declared gate IDs for every unobservable story. A failed story or an undeclared check cannot take this path.
+Triggers: `target-ci`, `target-deploy`, `target-publish`, `target-mirror`. The reviewer reports `blocked` with that exact `story` as `unobservable` and `postLanding: [live-docs]` covering every unobservable story (never for `failed` stories or undeclared checks). Ordinary integration gates still run; after code lands, the issue stays open and the reconciler hands the run owner the target, SHA and pending checks. Record verdicts one by one with `reconcile_resolve({issue, node, action: "post-landing", check, outcome, evidence})` (`passed` or `failed`, plus a run URL or concrete target observation). Passing all gates copies the history into Result and closes the issue.
 
-Ordinary integration gates still run. The issue stays open after its code reaches the target. The reconciler gives its run owner the target, SHA, and pending checks. Record one verdict at a time with `reconcile_resolve({issue, node, action: "post-landing", check, outcome, evidence})`. Use `passed` or `failed` and a run URL or concrete observation on the target. For a failure, repair the cause and report the rerun. Status retains the verdict history while the issue is open; when every check passes, the reconciler copies the history into the issue Result and closes it.
+## Review and repair
 
-## Review and recovery
+For visual packets touching configured rendered paths, a `visual-reviewer` opens the actual screenshots and judges the claims. Repair gaps directly when you have the context and authority, collect missing states yourself when practical, re-drive what you changed, and commit updated images and judgment to the packet index (pre-fix images can't prove a repair). Use the `stories`/`evidence` handoff above, not the standalone reviewer's `data: {blocking, nits}`.
 
-The reviewer receives the ticket, the diff and the driver's packet. For visual packets it is a visual reviewer. Open the actual screenshots (contact sheets first when useful) and judge the required claims. If you have the context and authority to repair a gap, repair it directly, re-drive the affected behavior and refresh the evidence. Collect missing states yourself when practical. Commit the repairs and your judgment with current image references to the packet index. Pre-fix images cannot establish a repaired outcome. Use the same `stories`/`evidence` handoff, not the standalone reviewer's `data: {blocking, nits}` format. Missing states remain `unobservable` until observed. Unrelated improvements are nonblocking observations with their own owner.
+Hand work off only when it buys missing capability, context, authority or lower total cost—not for role purity. Scope changes go back to shaping. A reviewer's repair doesn't need a second reviewer: re-drive, refresh evidence, finish. Any edit after acceptance requires refreshed evidence.
 
-A handoff should buy missing capability, context, authority or lower total cost, not preserve role purity. Repair size alone does not decide it. Scope changes go to shaping. A reviewer's repair does not automatically require another reviewer: re-drive what changed, refresh the evidence, and finish. The loop retains earlier workers until integration or explicit disposal. Edits after acceptance need updated evidence.
+When loosening an acceptance gate (e.g. screenshot tolerance), test its sensitivity with a known-bad change or explicitly mark sensitivity unverified—small regressions can occupy under 2% of pixels.
 
-Changing an acceptance gate requires checking its sensitivity: after relaxing a screenshot tolerance, try a known-bad change or leave sensitivity explicitly unverified. A small important regression may occupy fewer than 2% of pixels.
-
-Only the parent integrates a child's branch. Cleanup follows recorded integration, not apparent inactivity. The loop links the committed packet when closing the ticket; the evidence survives worktree retirement.
-
-## First-use trial
-
-Try this on a few real visual and nonvisual tickets before changing model defaults. Record completed encounters, setup failures, parent interventions, evidence requested by the reviewer and defects found, along with model/effort. Compare accepted completion cost, not just collector token cost. Keep trial notes with the packet; no permanent telemetry system is required.
-Count avoidable handoffs too: fixes bounced to an implementer despite sufficient reviewer context, trivial missing states sent to another collector, duplicated judgment and repeated setup. Keep a stage only where its contribution justifies the context and scheduling cost.
+Only the parent integrates a child's branch, and cleanup follows recorded integration.

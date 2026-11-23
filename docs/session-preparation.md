@@ -1,23 +1,17 @@
-# Orientation and interactive roles
+# Interactive roles and orientation
 
 Advancing spends the user's attention; supervision spends compute.
 
-- `introduce` is the intake check whenever the user says something about the project should change: find the story it serves, question the premise, find existing records, then update the story and either implement a settled session-sized change or record an issue.
-- `orient` answers where things stand and what to enter next. `advance` reads its scope through it.
-- `advance` makes progress on an issue or scope by its status and the rest of the tracker: shaping what isn't ready (triage for the most ready work per user decision, then, unscoped, areas ranked by importance and leverage for the user to pick and fork, then `shape` until agent-ready), and handing what is ready to an execution supervisor (`tend`) in its own session, so interactive sessions stay interactive.
-- `shape` drives an issue toward executable contracts, using map and plan.
-- `supervise` owns an agent-ready subtree through execution: it starts a reconciler (`lib/reconcile`) on it, which gets specs to tickets, runs each ticket through implement → drive → review and integrates upward, and resolves the exceptions the reconciler's handlers could not.
+- `introduce`: intake check whenever the user wants something about the project to change—find the story, question the premise, check existing records, then either do a settled session-sized change or record an issue (`ready` if settled, `idea` if not).
+- `orient`: read-only snapshot of where things stand and what to enter next (progress, active supervisors, ready unowned work, leverage-ranked human queue).
+- `advance`: moves an issue or scope forward via `orient`—triages unready work for the highest ready yield per user decision, runs `shape` until agent-ready, and hands ready work to an execution supervisor (`tend`) in its own session so interactive sessions stay interactive.
+- `shape`: drives an issue to `ready` (settled behavior, UX drawings if visual, and `decompose: true` if too big for one session).
+- `supervise`: owns an agent-ready subtree via the reconciler (`lib/reconcile`), which decomposes `decompose: true` issues, runs each leaf through `implement → (drive) → review`, integrates upward, and resolves exceptions handlers couldn't.
 
-Campaigns are ordinary parent issues. Supervision starts only on agent-ready subtrees and commits to finishing them; shaping refines or moves out everything else first. Questions a handler cannot answer within its node's authority go up to the next ancestor's handler, and at the root to the supervisor and then the user. Shared truth is in tickets/docs, working context in session/OM, and execution state in durable orchestration records.
+Campaigns are ordinary parent issues. Unready subtrees go through shaping or move-out before supervision starts. Escalations climb to the ancestor handler, then the supervisor, then the user. Shared truth lives in issues and docs, working context in the session/OM, execution state in reconciler records.
 
 ## Preparation
 
-Orientation happens in the interactive session itself, not in a delegated reader. The `orient` skill takes a [views](../lib/views.ts) snapshot (tracker frontier/mine/check/outline from the tracker skill's CLI, git state, worktrees), reads what the views cannot tell, and writes the briefing. `views.diff(state.views, views.snapshot())` reruns the snapshot and reports the lines that changed, so a briefing's age is measurable instead of narrated.
+`orient` runs directly in the interactive session using [lib/views.ts](../lib/views.ts) (tracker frontier/mine/check/outline, git status, worktrees) plus whatever the views don't show. `views.diff(before, views.snapshot())` checks what changed since an earlier snapshot.
 
-The briefing is read-only, not permission to execute a recommendation. Orient reports progress, known supervisors, ready unowned work and a leverage-ranked human queue. It does not silently become a local implementation session.
-
-With observational memory, compaction after the reading costs the parent nothing, so the reads need no isolation; the briefing is a natural point to compact and switch model. Broad or web evidence can go to a `research` worker, which returns compressed findings with sources.
-
-## Verification
-
-An orientation over a specified ticket should locate it within the scope and recommend an entry, not command its implementation. A workflow discussion should remain a discussion even when related executable tickets exist. An introduction updates the story before any implementation, and implements only a settled session-sized change. Orientation leaves the tracker unchanged.
+Because observational memory makes post-read compaction cheap, local reads need no reader subagent; a briefing is a natural point to compact or switch models. Delegate only broad or web evidence gathering to a `research` worker.

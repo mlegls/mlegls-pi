@@ -5,18 +5,18 @@ kind: process
 
 ## Steer issues from bb
 
-I rarely edit issues by hand; agents write them. What I want from a tracker is to see where every tree stands and to put an agent on one from where I'm looking: hand a ready tree to a supervisor, or start a conversation about some issues to get them ready.
+I rarely edit issues by hand; agents write them. What I want from a tracker is to see where every tree stands and put an agent on one from where I'm looking: hand a ready tree to a supervisor, or start a conversation to get unready issues to ready.
 
-Issues page → pick the project → Tree (or Ready / Mine / Done / Archived) → open an issue to read its contract beside the list.
+Issues page → pick the project → Tree (or Ready / Mine / Done / Archived) → open an issue to read it beside the list.
 
-- A tree on the frontier → Supervise → a new supervisor, or one already running (the project's role holder, or one I started from here) → I land in that thread.
-- A tree that isn't ready (still an idea or goal, blocked, claimed) can't be supervised: the reconciler expects specs and tickets. Refine starts a shaping session on it instead, told why it isn't ready.
-- One issue → Discuss → bb's composer with the issue mentioned; I write the first message and pick the model. Several selected → the same with all of them; if they are all on the frontier, Supervise takes them together.
-- In any composer, `#` finds an issue; the agent receives its path, state, subtree and contract.
-- From a thread that's working on an issue (a reconciler's worker or supervisor, or one I started from the page), its header names the issue; clicking it opens the contract beside the conversation. From an issue, Threads lists who's on it and takes me there.
-- Once I've enabled pickup for a scope on the project's supervisor, I don't send it anything: a tree that becomes ready there (a shaping session's tracker write) starts a reconciler by itself, once, under that supervisor. Human-assigned, blocked, claimed and half-shaped trees wait; a run I stopped stays stopped. I hear from the supervisor for exceptions and finishes, not for readiness. Reconcilers started together (by pickup, or several Supervise at once) cost the supervisor one turn for their notices, not one each.
+- A tree on the frontier → **Supervise** → a new supervisor or an existing one (the project's role holder or one started from here) → I land in that thread.
+- An unready tree (still an idea, blocked, or claimed) → **Refine** starts a shaping session told why it isn't ready.
+- **Discuss** opens BB's composer with the selected issue(s) mentioned; if all selected issues are on the frontier, **Supervise** takes them together.
+- In any composer, `#` mentions an issue with its path, state, subtree and body.
+- Threads working on an issue show it in the header (clicking opens it beside the chat); an issue's **Threads** list jumps to whoever is on it.
+- With pickup enabled for a scope on the project's supervisor, any tree that becomes ready there starts a reconciler automatically once settled. Human-assigned, blocked, claimed, half-shaped, and explicitly stopped runs stay put. Batched starts fold into one notice turn.
 
-The page follows the files: an agent's tracker write shows up without a refresh.
+The page watches the files live so agent writes appear without refresh.
 
 Source: "can we make a linear-like tracker plugin for bb based on the .md tracker convention described in my skills? the most important affordances would be to send an issue tree to a new/existing supervisor, and to start a session with selected issues mentioned, to start a refinement discussion"; "i pretty much never manually process issues anyway. it's for read + agent action"; "the reconciler expects specs/tickets, so there should at least be a session to change the labels. i think an override would break things"; "blank, and there should be a quicker way to start on one issue (tree) too"; "the multiselect should also have the supervise affordance if it's all spec/ticket".
 
@@ -24,7 +24,6 @@ Source (pickup), 2026-10-22, @thread:thr_nt35tbjva9: "could this be automatic ba
 
 Source (notice folding), 2026-10-25: "[reconcile ...] started notifications are queueing in individual bb turns rather than batched".
 
-Source (thread links), 2026-11-12, after comparing with bb's Tasks plugin: "i think thread attachment is especially worth stealing in our plugin. it would be nice if i can easily click to the issue each thread is working on from the bb gui". Driven the same day in bb's web app: a review worker's header showed its ticket and opened it in the side panel; the tree root's detail listed the supervisor under Threads. A session that only wrote `claimed-by` isn't linked.
+Source (thread links), 2026-11-12, after comparing with bb's Tasks plugin: "i think thread attachment is especially worth stealing in our plugin. it would be nice if i can easily click to the issue each thread is working on from the bb gui".
 
-Implementation: `tracker/` in `~/dev/bb-plugins` (a bb plugin); pickup is `lib/reconcile/pickup.ts` with the `pickup` tools.
-First use (2026-10-14, driven in bb's web app): tree, Ready, detail and the multi-select bar on mlegls-pi and concept; Discuss from two selected issues created a thread whose agent listed both issue paths from the mention context; `#thread-reg` in a project-less composer offered both matching issues; the Supervise dialog listed concept's role holder (thr_vetzcc74ex) beside New supervisor; `/skill:grill` as a spawned pi prompt expanded. Not yet driven: sending a tree to a supervisor, and Refine (both spawn the same way, with `/skill:supervise` and `/skill:shape`).
+Implementation: `tracker/` in `~/dev/bb-plugins`; pickup in `lib/reconcile/pickup.ts`.

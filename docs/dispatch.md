@@ -1,97 +1,63 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker, a BB thread in its own worktree, reporting by ending its turn.
+The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` launches prepared assignments as BB threads in isolated worktrees; each reports by ending its turn.
 
 ```js
 const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: [], assignments: [
   { handle: "unit-a", prompt: "Self-contained assignment, context, constraints and completion criterion",
     agent: "auto", base: "<exact Git ref>" },
 ] });
-store("wave", wave);
 ```
 
-Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` (default 8) is a parent-scoped budget. Excess assignments remain `pending`.
+Serialize waves and pass **all outstanding** handles in `active` across waves (`maxConcurrent` defaults to 8). Excess assignments return as `pending`.
 
-Assignments require `handle`, a self-contained `prompt`, and either `agent` (a roster stance in `agents/`, with the model list described in [routing](../routing.md)) or an exact `model` (`provider/model`) and `effort`. Optional `base` passes the exact Git ref; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, dependency scheduling, or inherited issue ownership.
+Each assignment takes `handle`, a self-contained `prompt`, and either `agent` (a stance in `agents/`, routed per [routing.md](../routing.md)) or exact `model` (`provider/model`) and `effort`. Optional `base` pins the Git ref; omitting it uses the checkout's HEAD (never uncommitted changes). The entire wave validates before the first launch, including issue/assignee rules below.
 
-The receipt contains:
+The receipt returns:
 
-- `submitted`: `{handle, run, path}` per launch, plain data you can persist; `<run>/<handle>` names the worker.
-- `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree the thread may have created before deciding what to do.
-- `pending`: assignments never attempted, because of capacity or the earlier failure.
+- `submitted`: `{handle, run, path}` per launch; `<run>/<handle>` names the worker.
+- `failed`: first failed assignment and error. Earlier launches survive; inspect any created worktree before retrying.
+- `pending`: assignments skipped due to capacity or an earlier failure.
 
-## bb runtime
+## BB runtime
 
-Every worker and thread is a bb thread: [bb](https://github.com/get-bb/bb) runs the selected provider and shows the thread in its desktop, web and mobile apps, nested under the spawning session's bb thread when there is one (a spawn from a plain terminal makes a top-level bb thread; reports and integration don't depend on the nesting). The bb daemon must be running: the bb CLI reaches it from inside a bb thread or a plain terminal alike, and when it doesn't answer, spawning fails before creating a worktree, saying to start bb. The worktree, setup and integration are ours (nothing else is recorded: a worker is found again from its bb thread, whose title is `<run>/<handle>` and whose environment is the worktree, and from git config); a worker's report is the final agent message logged for its completed turn (`lib/thread/turn.ts`) (`lib/thread/bb.ts`). Setup (the project's `mise run setup`) runs before BB starts the provider, and a failing worker setup fails the spawn. Before partial-resource cleanup, its `.wm/setup.log` is copied to a unique directory under the repository's common Git directory at `reconcile/setup-failures/`; the exception names the retained log. If copying fails, the worktree is kept with its original log instead. Successful setup keeps its log and status in the worktree's `.wm/setup.log` and `.wm/setup.json`. There is no host admission: the parent's `maxConcurrent` and the reconciler's budget are the only limits. A thread's state is bb's (`idle`, `working`, `exited` once archived), since BB may release an idle thread's provider; retiring stops and archives it in bb.
+Every worker is a BB thread nested under its parent (or top-level from a terminal); the BB daemon must be running. Worker metadata lives only in the BB thread (title `<run>/<handle>`, environment = worktree) and git config; reports come from the turn's final message (`lib/thread/turn.ts`, `lib/thread/bb.ts`).
 
-BB owns the worker's command. Inspect and manage threads with `bb thread`.
+`mise run setup` runs before BB starts the provider. On failure, `.wm/setup.log` is copied to `<git-common-dir>/reconcile/setup-failures/` before cleanup (if copying fails, the worktree stays). On success, `.wm/setup.log` and `.wm/setup.json` remain in the worktree.
 
-The BB supervision plugin seeds worker identity on the thread and forwards it to the provider; see `provider.env-resolved` in `bb thread log --json`. Keep `BB_PI_BRIDGE_COMMAND` pointing at this checkout's `bin/bb-pi`: it strips worker identity from Pi's auxiliary sessionless process and appends the personal system prompt. Start BB with a clean environment so unrelated threads don't inherit a worker's identity.
+The BB supervision plugin seeds worker identity and forwards it to the provider (`provider.env-resolved` in `bb thread log --json`). Keep `BB_PI_BRIDGE_COMMAND` pointed at `bin/bb-pi` so auxiliary Pi processes drop worker identity and receive the personal system prompt. Start BB from a clean environment so unrelated threads don't inherit worker env vars.
 
 ## Supervision
 
-Workers report by ending their turn: the last message starts with `done`, `blocked`, `needs-input` or `checkpoint` (`lib/report.ts`). The workers are bb child threads of the parent, so bb tells the parent when each finishes. `bb thread tell <thread> --mode queue` answers a question or steers a worker; the reconciler does the same for its workers. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
+Workers report by ending their turn with `done`, `blocked`, `needs-input` or `checkpoint` as the first word (`lib/report.ts`). BB notifies the parent when a child finishes. Answer or steer a worker with `bb thread tell <thread> --mode queue`. A finished turn only hands control back—check the report and acceptance criterion before integrating.
 
 ## Integration
 
-After the worker is settled and completion is accepted, `tools.integrate({worker, mode?, keep?})` uses plain Git. It refuses uncommitted worker changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` makes a `--no-ff` merge commit. Conflicts abort and return `{conflict: true, branch, files}`; send those to the worker to resolve on its branch. The caller owns settlement and acceptance; integration does not infer them from idle status.
+Once a worker is settled and accepted, `tools.integrate({worker, mode?, keep?})` merges via plain Git and refuses uncommitted changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` creates a `--no-ff` merge commit. Conflicts abort with `{conflict: true, branch, files}` so the worker can resolve them on its branch.
 
-Before merging, integration replays the destination's commit hooks on each incoming commit. A refusal names the commit and queues the hook output to the worker. Amend or rewrite the offending commit before retrying; a later fix leaves the rejected commit in the landing range.
+Before merging, integration replays destination commit hooks on every incoming commit. Hook failures return the commit and queue the output to the worker; amend or rewrite the rejected commit rather than stacking a fix on top.
 
-`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: the worker's thread session and worktree are removed. Processes still running from inside the worktree (a dev server, a watcher) are sent SIGTERM (`killed`); the thread's teardown doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `tools.retire({worker})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Both take the receipt's handle or just its name, found under `<checkout>__worktrees/`. Cleanup is sequential, not transactional: if it fails after the merge, the merge remains. Inspect the worktree before repeating cleanup. Nothing is removed on merge failure.
+Unless `keep: true`, cleanup runs **after** integration: removes the BB thread and worktree, sends SIGTERM to leftover processes rooted in the worktree (`killed`), and deletes the branch when `git cherry` confirms all patches are in HEAD (`branchDeleted`; otherwise kept with `branchKept`). `tools.retire({worker})` runs the same cleanup without merging, preserving unmerged branches. Cleanup is sequential—if it fails after a merge, the merge stands; inspect before retrying.
 
 ## Reconciler landings
 
-Reconcile/start captures an optional `land` (`local`, `pr-merge`, `pr-review`),
-otherwise the owner's committed `.pi/reconcile.json`, otherwise local. CLI:
-`bun lib/reconcile/main.ts start <issue> --owner <bb thread id> --land pr-review`. The owner is the bb thread told about exceptions and the final result; when it has closed, the thread holding `supervisor` in `desk/ROLES.md` is.
-A resume keeps its saved mode; an explicit conflicting override refuses. Old
-states without a mode remain local despite configuration changes.
+`reconcile` captures `land` (`local`, `pr-merge`, or `pr-review`) from its argument, the owner's committed `.pi/reconcile.json`, or `local`. Resume keeps the saved mode and refuses a conflicting override. The owner is the BB thread notified of exceptions and completion (falling back to the `supervisor` role holder in `desk/ROLES.md` if closed).
 
-Local targets the owner checkout. PR modes fetch the captured default base and
-own a deterministic staging branch/worktree under the repository's worktree
-area. Root and repair workers' ab-parent is staging; collector destinations
-remain issue slugs. Integration still runs the existing gates, retained tests,
-packet validation and write-ahead recovery. Collector/staging results stay
-globally open, with their original reviewed handoffs retained after retirement.
-
-Status includes `land`, `pr` (phase, URL, branch/path, repair receipt) and
-`target`; inflight distinguishes staging from owner landing. Ordinary workers
-retire while the PR waits. Root PR exceptions resolve on that receipt, not by
-redispatching completed children. Stop retires owned workers but retains
-staging/published history and receipts, without closing a PR or issues.
-
-Only MERGED plus fetched base ancestry transfers the ledger to
-`github:<owner/name>:<base branch>` and closes child-first. Owner sync is
-best-effort afterward: fast-forward only when clean and on the base branch.
-Dirty, divergent, other-branch or unavailable owners are left untouched; the
-saved ownerSync outcome prevents repeating it. PR modes ignore local mainRed.
-
-Publication recovers by repository/head lookup, including interrupted creates.
-Remote waits poll about once a minute, with no worker retained. Contributor and
-base updates merge without rewriting history; gates precede normal pushes.
-CI, gate and conflict repairs share a two-worker repair budget and three
-integration attempts. Owner exceptions pause work, not terminal observation.
-`pr-merge` requests a head-guarded merge commit only after every reported head
-check passes; `pr-review` never requests a merge. The submitted-review selector
-remains dormant until its own ticket fills it.
-
-The supplied-host library seam supports seeded scratch observations, not live
-GitHub evidence. See [staging first use](attachments/stage-reconciled-root-for-pr-landing/index.md)
-and [PR lifecycle first use](attachments/reconcile-pr-checks-and-branch-updates/index.md).
+- `local`: lands directly into the owner checkout.
+- `pr-merge` / `pr-review`: stages into a deterministic run-owned branch/worktree off the fetched default base, opens a PR, retires ordinary workers while polling (~1/min), merges base/contributor updates without rewriting history, and repairs CI/review failures within a bounded budget (2 repair workers, 3 integration attempts). Only `MERGED` + fetched base ancestry closes issues (child-first) and best-effort fast-forwards a clean owner checkout on the base branch. See [reconcile-pull-requests.md](guide/reconcile-pull-requests.md).
 
 ## Stance models
 
-`stance/<agent>` is a pi virtual model (`extensions/stances`) for each agent file with a `model:` list. Each new user turn goes to the first entry whose provider has credentials and delegated capacity left; continuations stay on it so prompt caches hold, and a retry after a rate-limit or overload error moves down the list. Model choice lives in each agent's `model:` list; the reasoning behind those lines is in `docs/models.md`, and the stances themselves are described in `routing.md`.
+`stance/<agent>` is a Pi virtual model (`extensions/stances`). Each new user turn routes to the first entry in the agent's `model:` list with credentials and delegated capacity left; continuations stick to it for prompt-cache reuse, stepping down the list on rate-limit or overload errors.
 
-`allocation.json` maps each Pi or BB provider to its `quota-axi` provider and the share of each quota window delegated work may use. The rest is kept for interactive use over the time left in the window: delegated work may use a provider while every applicable window has more than `(1 - share) × timeRemainingPercent` left. Providers without an entry or readable windows aren't gated. For providers on the `codex` quota, the banked resets listed by `GET https://chatgpt.com/backend-api/wham/rate-limit-reset-credits` (with `~/.codex/auth.json`'s token and account) each count as another full window. When a window that bounds delegated work reaches 0% and work is waiting on it, the router consumes the earliest-expiring credit, once per window (claims under `$XDG_STATE_HOME/mlegls-pi/codex-resets/`), logs it and sends a `bb push-notifications send`; interactive work at 0% falls back without redeeming.
+`allocation.json` maps each provider to its `quota-axi` provider and the share delegated work may consume. Delegated work may use a provider while every applicable window has more than `(1 - share) × timeRemainingPercent` remaining; unmapped or unreadable providers aren't gated. For `codex` quota, banked reset credits (`GET https://chatgpt.com/backend-api/wham/rate-limit-reset-credits` using `~/.codex/auth.json`) count as extra full windows. When a bounding window hits 0% with delegated work waiting, the router redeems the earliest-expiring credit once per window (claimed under `$XDG_STATE_HOME/mlegls-pi/codex-resets/`), logs it and sends a `bb push-notifications send`. Interactive work at 0% falls back without redeeming.
 
 ## Tracker assignment
 
-Carry each issue's own `issue` and `assignee` into its assignment, even when the assignee is absent: an issue without one refuses automatic dispatch. Re-read child assignments during recursive decomposition: a parent's selector is not inherited permission.
+Pass each issue's own `issue` and `assignee` into its assignment (omitting `assignee` refuses automatic dispatch; parent selectors aren't inherited across decomposition):
 
-- `agent`: any agent.
-- `agent:technical`: that stance.
-- `model:zai/glm-5.3-flash:high`: that exact model and effort.
-- `agent:technical, model:zai/glm-5.3-flash:high`: both; component order is immaterial.
-- `human`, `user:<name>`, `session:<id>`: never dispatched automatically. Hand to the human or resume the exact assigned session.
+- `agent`: any stance.
+- `agent:technical`: specific stance.
+- `model:zai/glm-5.3-flash:high`: exact model and effort.
+- `agent:technical, model:zai/glm-5.3-flash:high`: both (either order).
+- `human`, `user:<name>`, `session:<id>`: never auto-dispatched.
