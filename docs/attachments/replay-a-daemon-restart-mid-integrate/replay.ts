@@ -29,15 +29,15 @@ for (const mode of cases.filter(mode => !selector || mode === selector)) {
 		let head: string;
 		if (decompose) {
 			s.collectors.root = { path: f.collector, branch: "collector", parentBranch: "main" };
-			const attempt = beginRefinement({ state: s, tracker: f.tracker, save: () => saveState(s), locked: async work => work(), stopWriter: async () => {} }, "root", worker.handle);
+			const attempt = beginRefinement({ state: s, tracker: f.tracker, save: () => saveState(s), locked: async work => work() }, "root", worker.handle);
 			attempt.worker = worker;
 			s.chains.root.refinement = worker.handle;
-			f.create("part", { "part-of": "root", assignee: "agent:shell", "claimed-by": attempt.claim });
-			f.tracker.update("root", { stage: null });
 			mkdirSync(join(f.root, "agents/roles"), { recursive: true });
 			writeFileSync(join(f.root, "agents/shell.md"), "---\nrole: implement\n---\nFixture agent.\n");
 			writeFileSync(join(f.root, "agents/roles/implement.md"), "Fixture role.\n");
 			head = f.commit(worker.path, "stub.ts", "export interface Stub {}\n");
+			f.commit(worker.path, ".reconcile/proposal/children/part.md", "---\nstage: ready\npart-of: root\nassignee: agent:shell\n---\nUse the stub.\n");
+			f.commit(worker.path, ".reconcile/proposal/parent.md", "---\nstage: null\n---\n");
 			handoff = { children: ["part"] };
 		} else {
 			f.tracker.update("root", { stage: "ticket" });
