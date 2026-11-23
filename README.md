@@ -90,7 +90,7 @@ See [Host doctor](docs/guide/host-doctor.md).
 
 - `mise run test`: the full suite, queued behind the host's heavy slots (needs `bin/heavy` on `PATH`).
 - `bun test <file>`: one file.
-- `bun run typecheck`: `tsc --noEmit`.
+- `bun run typecheck`: `tsc --noEmit`. Run `bun run setup` first: the check includes the Obsidian tracker plugin, whose API types are installed from `extensions/obsidian-tracker/`.
 - Tracker CLI tests: `bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts`.
 
 ## Named agents
