@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "ready"
 assignee: "human"
 author: "host-doctor:s-MacBook-Pro.local"
 ---

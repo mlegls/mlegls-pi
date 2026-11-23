@@ -1,5 +1,5 @@
 ---
-stage: "goal"
+stage: "idea"
 assignee: "session:hermes-concept-strategy"
 author: "session:hermes-concept-strategy-2026-11-11"
 ---

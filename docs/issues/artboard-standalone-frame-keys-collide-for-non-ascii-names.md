@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "ready"
 assignee: "agent"
 author: "session:review-3"
 priority: 4
