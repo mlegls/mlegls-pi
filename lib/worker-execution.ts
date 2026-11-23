@@ -1,5 +1,5 @@
 import { executions, type Agent } from "./agents";
-import { allocation, gate, noticeBankedReset, windows } from "./allocation";
+import { allocation, capacity, windows } from "./allocation";
 import { bbModels, bbProject, bbProviders } from "./thread/bb";
 import { checkout } from "./thread/git";
 import type { WorkerExecution, WorkerRoute } from "./thread/types";
@@ -32,16 +32,18 @@ export async function workerExecution({ agent, model, effort, after, project }: 
 	}
 	const failed = after ? list.findIndex(e => after.agent === agent?.name && e.model === after.model && e.effort === after.effort) : -1;
 	const alloc = allocation();
-	const current = windows(alloc);
-	for (const e of after && failed < 0 ? [] : list.slice(failed + 1)) {
+	const retryCodex = failed >= 0 && alloc[prefix(list[failed].model)]?.quota === "codex";
+	const current = windows(alloc, retryCodex);
+	for (const [i, e] of list.entries()) {
+		if ((after && failed < 0) || i < failed || (i === failed && !retryCodex)) continue;
 		const target = split(e.model);
 		if (!available(target.providerId)) continue;
-		const g = gate(target.providerId === "pi" ? target.model : e.model, current, alloc);
-		if (!g.admits) continue;
 		const catalog = await bbModels(target.providerId, await bbProject(checkout(project).project), target.model).catch(() => []);
 		const match = catalog.find(m => m.id === target.model || m.model === target.model);
 		if (!match || (match.supportedReasoningEfforts?.length && !match.supportedReasoningEfforts.some(r => r.reasoningEffort === e.effort))) continue;
-		noticeBankedReset(prefix(target.providerId === "pi" ? target.model : e.model), g, current);
+		const room = await capacity(e.model, current, alloc);
+		// Reuse a failed route only if this launch actually freed new capacity there.
+		if (i === failed ? !room.redeemed : !room.admits) continue;
 		return { ...target, effort: e.effort, route: { agent: agent!.name, ...e } };
 	}
 	throw new Error(`${agent?.name ?? "worker"}: no ${after ? "later " : ""}model has delegated capacity and is available in BB`);

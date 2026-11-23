@@ -1,12 +1,7 @@
 {
   "openai": {
     "quota": "codex",
-    "noninteractive": 0.8,
-    "resets": [
-      "2026-11-30T20:30:26Z",
-      "2026-12-01T22:58:22Z",
-      "2026-12-12T22:54:34Z"
-    ]
+    "noninteractive": 0.8
   },
   "codex": {
     "quota": "codex",
