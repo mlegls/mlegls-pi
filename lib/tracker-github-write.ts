@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { parseAssignee } from "./assignee.ts";
+import { ASSIGNEE_GRAMMAR, parseAssignee } from "./assignee.ts";
 import type { Fields, Tracker, TrackerOptions } from "./tracker.ts";
 import type { GithubNode } from "./tracker-github.ts";
 import {
@@ -26,7 +26,7 @@ type AssigneeRole = "ready-for-agent" | "ready-for-human";
 function assigneeRole(value: unknown): AssigneeRole | undefined {
 	if (value == null) return;
 	const parsed = parseAssignee(value);
-	requireGithub(parsed, "invalid assignee selector");
+	requireGithub(parsed, "invalid assignee selector " + JSON.stringify(value) + "; " + ASSIGNEE_GRAMMAR);
 	requireGithub(parsed.kind !== "session", "GitHub labels cannot represent the session selector " + value);
 	return parsed.kind === "agent" ? "ready-for-agent" : "ready-for-human";
 }

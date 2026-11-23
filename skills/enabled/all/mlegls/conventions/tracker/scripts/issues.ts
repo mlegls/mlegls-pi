@@ -20,7 +20,7 @@ import { join, basename, dirname, resolve, relative, sep } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
-import { parseAssignee } from "../../../../../../../lib/assignee.ts";
+import { ASSIGNEE_GRAMMAR, parseAssignee } from "../../../../../../../lib/assignee.ts";
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight } from "./inflight.ts";
 // Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
@@ -74,7 +74,7 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
       if ("stage" in fm) throw new Error("legacy next cannot mix with stage");
     }
     if ("stage" in fm && !STAGES.includes(fm.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
-    if ("assignee" in fm && !parseAssignee(fm.assignee)) throw new Error("invalid assignee selector");
+    if ("assignee" in fm && !parseAssignee(fm.assignee)) throw new Error("invalid assignee selector " + JSON.stringify(fm.assignee) + "; " + ASSIGNEE_GRAMMAR);
     if ("author" in fm && (typeof fm.author !== "string" || !fm.author.trim())) throw new Error("author must be a nonempty provenance string");
     if ("blocked-by" in fm && !Array.isArray(fm["blocked-by"])) throw new Error("blocked-by must be a list of issue wikilinks and guards");
     const isLink = (value: unknown) => typeof value === "string" && value.startsWith("[[");

@@ -11,6 +11,9 @@ function modelPin(part: string): ModelPin | undefined {
   if (match) return { model: match[1], effort: match[2] };
 }
 
+/** Appended to invalid-selector diagnostics so callers needn't look up the grammar. */
+export const ASSIGNEE_GRAMMAR = "expected agent, human, user:<name>, session:<id>, agent:<stance> or model:<provider>/<model>:<none|minimal|low|medium|high|xhigh>; only one stance and one model override combine";
+
 export function parseAssignee(value: unknown): Assignee | undefined {
   if (typeof value !== "string") return;
   const parts = value.split(",");

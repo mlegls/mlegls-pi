@@ -3,7 +3,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
-import { parseAssignee } from "./assignee.ts";
+import { ASSIGNEE_GRAMMAR, parseAssignee } from "./assignee.ts";
 import { integrateThread, workerOf, ThreadMergeConflict, type ThreadCleanup, type WorkerThread } from "./thread";
 import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
 import { CommitHookFailure } from "./thread/commit-hooks";
@@ -63,7 +63,7 @@ export function assertAssignee(task: Assignment) {
   const selector = task.assignee;
   if (selector == null) throw new Error("dispatch: unassigned work cannot be automatically dispatched (" + task.handle + ")");
   const parsed = parseAssignee(selector);
-  if (!parsed) throw new Error("dispatch: invalid assignee " + JSON.stringify(selector));
+  if (!parsed) throw new Error("dispatch: invalid assignee " + JSON.stringify(selector) + "; " + ASSIGNEE_GRAMMAR);
   if (parsed.kind !== "agent") throw new Error("dispatch: " + task.handle + " is assigned to " + selector);
   const { stance, pin } = parsed;
   if (stance && task.agent !== stance) throw new Error("dispatch: " + task.handle + " is assigned to agent:" + stance + ", not agent " + task.agent);
