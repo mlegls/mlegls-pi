@@ -27,6 +27,7 @@ import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { readLive } from "../session-meta/live";
 import { bbThreads, bbWorkerRoute, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
+import { managedProcess } from "../thread/process.ts";
 import type { WorkerRoute } from "../thread/types";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
@@ -600,18 +601,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const thread = bbThread(h);
 		return !!thread && !thread.archivedAt;
 	};
-	/** Read pi-processes' session receipts. A process can change stdin or outlive its group leader;
-	 * neither changes whether the manager is still waiting on it. No registry is ambiguous for an
-	 * idle worker: older pi-processes managed work without writing one. */
-	const managedProcess = (sessionFile: string, missingMeansEmpty = false): boolean | undefined => {
-		try {
-			const registry = JSON.parse(readFileSync(join(sessionFile + ".processes", "registry.json"), "utf8"));
-			if (registry.version !== 1 || !Array.isArray(registry.records)) return undefined;
-			const statuses: (string | undefined)[] = registry.records.map((r: { info?: { status?: string } }) => r?.info?.status);
-			if (statuses.some(status => status === "running" || status === "terminating" || status === "terminate_timeout")) return true;
-			return statuses.every(status => status === "exited" || status === "killed") ? false : undefined;
-		} catch (e) { return missingMeansEmpty && (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
-	};
+	// Missing receipts are ambiguous for idle workers: older pi-processes did not write them.
 	const waitingWithoutProcess = (h: Handle): boolean => {
 		const thread = bbThread(h);
 		if (!thread || thread.archivedAt || thread.status !== "idle") return false;

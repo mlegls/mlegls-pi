@@ -10,9 +10,12 @@ import { homedir } from "node:os";
 import { basename, resolve } from "node:path";
 import { parse, statusRepairMessage } from "../../lib/report.ts";
 import { checkout, git } from "../../lib/thread/git.ts";
+import { managedProcess } from "../../lib/thread/process.ts";
 
 const TRACKER = "Use the global tracker: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts text <slug|attachments/file.md>` (also `update`, `fields`, `tree`).";
 const INTEGRATION = "Commit on your worker branch and report your handoff; your parent integrates and publishes it.";
+const PROMISED_WAKE = /\b(?:when|once)\b.{0,80}\b(?:(?:finish|pass)(?:es)?|(?:end|land|complete)s?)\b.{0,40}\bI['’]ll\b|\bwakes me\b/i;
+const NO_WAKE = "Nothing is running that will wake this thread. Wait in the foreground with process wait, or hand the wait to an automation.";
 const KILL = "pkill/killall match processes host-wide, including other sessions' workers. Stop processes you started by pid (kill <pid>), with the process tool, or with the checkout's own stop task.";
 
 // Read literal shell words and command boundaries; quoted prose stays inside its argument.
@@ -142,21 +145,26 @@ export function hookBypass(command: string): string | undefined {
 
 export default function (pi: ExtensionAPI) {
 	const worker = process.env.PI_WM_HANDLE;
-	// Correct the report before bb publishes this turn's completion. One
-	// follow-up per input leaves a repeated failure visible to the parent.
-	let repairedHandoff = false;
-	pi.on("input", () => { repairedHandoff = false; });
+	// One follow-up per input leaves a repeated failure visible rather than looping.
+	let followedUp = false;
+	pi.on("input", () => { followedUp = false; });
 	pi.on("agent_end", (event, ctx) => {
-		if (!worker || repairedHandoff) return;
+		if (followedUp) return;
 		const last = event.messages.at(-1);
 		if (last?.role !== "assistant" || last.stopReason === "error" || last.stopReason === "aborted") return;
 		const text = last.content.filter(part => part.type === "text").map(part => part.text).join("\n");
-		const report = parse(text, ctx.cwd);
-		const missing = report.status === null;
-		const content = missing ? statusRepairMessage(text, report.handoffError) : report.status === "done" && report.handoffError?.startsWith("Foreign commits ") ? report.handoffError : undefined;
-		if (!content) return;
-		repairedHandoff = true;
-		pi.sendMessage({ customType: missing ? "status-handoff" : "commit-handoff", content, display: false }, { deliverAs: "followUp" });
+		let wake: string | undefined;
+		if (PROMISED_WAKE.test(text)) {
+			const sessionFile = ctx.sessionManager.getSessionFile();
+			if (!sessionFile || managedProcess(sessionFile, true) === false) wake = NO_WAKE;
+		}
+		const report = worker ? parse(text, ctx.cwd) : undefined;
+		const missing = report?.status === null;
+		const handoff = missing ? statusRepairMessage(text, report.handoffError) : report?.status === "done" && report.handoffError?.startsWith("Foreign commits ") ? report.handoffError : undefined;
+		if (!wake && !handoff) return;
+		followedUp = true;
+		const content = [wake, handoff].filter(Boolean).join("\n\n");
+		pi.sendMessage({ customType: wake ? "promised-wake" : missing ? "status-handoff" : "commit-handoff", content, display: false }, { deliverAs: "followUp" });
 	});
 	pi.on("tool_call", (event, ctx) => {
 		const input = event.input as { path?: unknown; command?: unknown; timeout?: unknown };
