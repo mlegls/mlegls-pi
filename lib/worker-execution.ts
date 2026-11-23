@@ -41,7 +41,7 @@ export async function workerExecution({ agent, model, effort, after, project }: 
 		const catalog = await bbModels(target.providerId, await bbProject(checkout(project).project), target.model).catch(() => []);
 		const match = catalog.find(m => m.id === target.model || m.model === target.model);
 		if (!match || (match.supportedReasoningEfforts?.length && !match.supportedReasoningEfforts.some(r => r.reasoningEffort === e.effort))) continue;
-		const room = await capacity(e.model, current, alloc);
+		const room = await capacity(target.providerId === "pi" ? target.model : e.model, current, alloc);
 		// Reuse a failed route only if this launch actually freed new capacity there.
 		if (i === failed ? !room.redeemed : !room.admits) continue;
 		return { ...target, effort: e.effort, route: { agent: agent!.name, ...e } };
