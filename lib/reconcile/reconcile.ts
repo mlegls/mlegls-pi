@@ -123,7 +123,6 @@ type LaunchRole = WorkerPhase | "handle";
 interface PhaseLaunch {
 	phase: WorkerPhase;
 	extra: string;
-
 	resumeAttempt?: string;
 	finished: boolean;
 	/** Collector base for a join or promoted refinement, rather than the previous worker's head. */
@@ -360,7 +359,7 @@ export function constrainedPrompt(cwd: string, root: string, node: string, promp
 }
 
 const finished = (i: Issue) => i.satisfied;
-const descends = (i: Issue, slug: string, view: Map<string, Issue>) => { for (let p = i.partOf; p; p = view.get(p)?.partOf ?? null) if (p === slug) return true; return false; };
+const descends = (i: Pick<Issue, "partOf">, slug: string, view: ReadonlyMap<string, Pick<Issue, "partOf">>) => { for (let p = i.partOf; p; p = view.get(p)?.partOf ?? null) if (p === slug) return true; return false; };
 const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + "\n```";
 
 export interface StartOptions {
@@ -388,8 +387,6 @@ export async function withIntegrationLock<T>(cwd: string, fn: () => Promise<T>):
 	}
 	try { return await fn(); } finally { rmSync(lockDir, { recursive: true, force: true }); }
 }
-
-
 
 /** A run that finished `done` whose root has since been reopened starts over, rather than resuming a state that records
  * its landing and reports done at once (2026-11-16, tag-chunk-refresh-can-exhaust-occ-retries-against-collector). The
@@ -526,9 +523,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	function releaseRunClaims(target: string) {
 		const rows = snapshot();
 		for (const row of rows.values()) {
-			let cursor = row.partOf;
-			while (cursor && cursor !== target) cursor = rows.get(cursor)?.partOf ?? null;
-			if ((row.slug === target || cursor === target) && row.claims.some(c => c.slug === row.slug && !c.derived && c.claimedBy === "reconcile:" + s.root))
+			if ((row.slug === target || descends(row, target, rows)) && tracker.fields(row.slug)["claimed-by"] === "reconcile:" + s.root)
 				tracker.update(row.slug, { "claimed-by": null });
 		}
 	}

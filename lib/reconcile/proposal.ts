@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { isDeepStrictEqual } from "node:util";
 import { join } from "node:path";
 import { parseAssignee } from "../assignee.ts";
 import { contract } from "../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts";
@@ -99,9 +100,10 @@ export function readProposal(cwd: string, tracker: Tracker, node: string, root: 
 		const raw = execFileSync("git", ["-C", cwd, "show", head + ":" + path], { encoding: "utf8" });
 		requireProposal(!raw.includes("<!-- mlegls-pi:tracker"), "reserved tracker envelope: " + path);
 		const { doc, body } = contract(raw), fields: Fields = doc.toJS({ maxAliasCount: 0 });
+		requireProposal(isDeepStrictEqual(fields, JSON.parse(JSON.stringify(fields))), "frontmatter must be JSON-compatible: " + path);
 		const isParent = !alias;
 		for (const key of Object.keys(fields)) requireProposal(!key.startsWith("$") && !["github", "github-comments", "github-types", "claimed-by", "next", "__proto__"].includes(key), "reserved field " + key);
-		requireProposal(fields.priority == null || [1, 2, 3].includes(Number(fields.priority)) && typeof fields.priority === "number", "priority must be 1, 2 or 3");
+		requireProposal(fields.priority == null || typeof fields.priority === "number" && [1, 2, 3].includes(fields.priority), "priority must be 1, 2 or 3");
 		requireProposal(fields.drive == null || fields.drive === "none" || fields.drive === "always", "invalid drive");
 		requireProposal(fields.decompose == null || typeof fields.decompose === "boolean", "invalid decompose");
 		requireProposal(!("title" in fields) || typeof fields.title === "string" && fields.title.trim(), "empty title");
@@ -130,7 +132,7 @@ export function readProposal(cwd: string, tracker: Tracker, node: string, root: 
 	};
 	for (const [id, child] of children) {
 		const p = child.fields["part-of"] as string;
-		requireProposal(p === node || children.has(p), "unrooted child " + id);
+		requireProposal(p === node || children.has(p) || rows.has(p), "missing parent for " + id);
 		graph.set(id, { parent: p, blockers: [], stage: null, assignee: null, closed: false });
 		overlay(id, child.fields);
 	}
@@ -138,10 +140,15 @@ export function readProposal(cwd: string, tracker: Tracker, node: string, root: 
 	const kids = new Map<string, string[]>();
 	for (const [id, row] of graph) {
 		if (row.parent) { const list = kids.get(row.parent) ?? []; list.push(id); kids.set(row.parent, list); }
-		for (const b of row.blockers) requireProposal(graph.has(b), "missing blocker " + b);
+		if (children.has(id) || id === node && proposal.parent?.fields["blocked-by"] != null)
+			for (const b of row.blockers) requireProposal(graph.has(b), "missing blocker " + b);
 	}
-	const blockers = (id: string) => graph.get(id)!.blockers;
+	const blockers = (id: string) => graph.get(id)!.blockers.filter(b => graph.has(b));
 	ordered(graph.keys(), id => [...blockers(id), ...(kids.get(id) ?? [])], "completion");
+	for (const id of children.keys()) {
+		for (let p = graph.get(id)!.parent; p !== node; p = graph.get(p)!.parent)
+			requireProposal(p && graph.has(p) && !graph.get(p)!.closed, "child is outside the open subtree: " + id);
+	}
 	const deps = (id: string) => [graph.get(id)!.parent!, ...blockers(id)].filter(d => children.has(d));
 	proposal.children = ordered(children.keys(), deps, "creation order").map(id => children.get(id)!);
 	const validateScope = (id: string) => {
@@ -149,7 +156,7 @@ export function readProposal(cwd: string, tracker: Tracker, node: string, root: 
 		if (row.closed) return;
 		const sub = kids.get(id) ?? [];
 		requireProposal(row.stage === "ready" || row.stage === null && sub.length, "missing ready residual or children: " + id);
-		if (row.stage || row.assignee) requireProposal(parseAssignee(row.assignee)?.kind === "agent" || id === root && !row.assignee, "not agent-assigned: " + id);
+		if (children.has(id) || row.stage || row.assignee || tracker.githubIssue) requireProposal(parseAssignee(row.assignee)?.kind === "agent" || id === root && !row.assignee, "not agent-assigned: " + id);
 		requireProposal(!rows.get(id)?.claims.some(c => c.claimedBy !== "reconcile:" + root), "foreign claim on " + id);
 		for (const kid of sub) validateScope(kid);
 	};
@@ -166,12 +173,12 @@ export function stripProposalCommits(cwd: string, base: string): string {
 	const cmd = (...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", env: { ...process.env, GIT_INDEX_FILE: join(temp, "index") } }).trimEnd();
 	try {
 		let parent = base, previous = git(cwd, "rev-parse", base + "^{tree}");
-		for (const id of git(cwd, "rev-list", "--first-parent", "--reverse", base + "..HEAD").split("\n").filter(Boolean)) {
+		for (const id of git(cwd, "rev-list", "--ancestry-path", "--first-parent", "--reverse", base + "..HEAD").split("\n").filter(Boolean)) {
 			cmd("read-tree", id);
 			cmd("rm", "--cached", "-qr", "--ignore-unmatch", "--", PROPOSAL_DIR);
 			const tree = cmd("write-tree");
 			if (tree === previous) continue;
-			parent = git(cwd, "rev-parse", id + "^") === parent && tree === git(cwd, "rev-parse", id + "^{tree}")
+			parent = git(cwd, "show", "-s", "--format=%P", id) === parent && tree === git(cwd, "rev-parse", id + "^{tree}")
 				? id : cmd("commit-tree", tree, "-p", parent, "-m", cmd("show", "-s", "--format=%B", id));
 			previous = tree;
 		}

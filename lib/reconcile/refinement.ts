@@ -124,6 +124,7 @@ export async function acceptRefinement(context: RefinementContext, handle: strin
 		if (attempt.phase === "accepted" || attempt.phase === "accepting") return accept(context, handle);
 		if (attempt.phase !== "writing" || input.worker.handle !== handle)
 			throw new Error("Refinement is not the reported writer: " + handle);
+		assertNoTrackerChanges(input.worker.path, git(input.destination, "rev-parse", "HEAD"));
 		const proposal = readProposal(input.worker.path, context.tracker, attempt.node, context.state.root, input.children);
 		persist(context, () => {
 			attempt.phase = "accepting";
