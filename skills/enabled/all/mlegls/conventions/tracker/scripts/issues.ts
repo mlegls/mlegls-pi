@@ -20,6 +20,7 @@ import { join, basename, dirname, resolve, relative, sep } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
+import { parseAssignee } from "../../../../../../../lib/assignee.ts";
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight } from "./inflight.ts";
 // Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
@@ -73,7 +74,7 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
       if ("stage" in fm) throw new Error("legacy next cannot mix with stage");
     }
     if ("stage" in fm && !STAGES.includes(fm.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
-    if ("assignee" in fm && (typeof fm.assignee !== "string" || !validAssignee(fm.assignee))) throw new Error("invalid assignee selector");
+    if ("assignee" in fm && !parseAssignee(fm.assignee)) throw new Error("invalid assignee selector");
     if ("author" in fm && (typeof fm.author !== "string" || !fm.author.trim())) throw new Error("author must be a nonempty provenance string");
     if ("blocked-by" in fm && !Array.isArray(fm["blocked-by"])) throw new Error("blocked-by must be a list of issue wikilinks and guards");
     const isLink = (value: unknown) => typeof value === "string" && value.startsWith("[[");
@@ -485,14 +486,6 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
 
 const KINDS = ["grill", "research", "prototype", "measure", "simplify", "implement", "wait", "done"];
 const STAGES = ["idea", "goal", "spec", "ticket", "done"];
-// Routing owns stance and model resolution; tracker validates selector syntax only.
-function validAssignee(a: string): boolean {
-  const parts = a.split(",").map(p => p.trim());
-  const stance = (p: string) => /^agent:[a-z][a-z0-9-]*$/.test(p);
-  const model = (p: string) => /^model:[^\s/,:]+\/[^\s,:]+:([a-z]+)$/.test(p);
-  if (parts.length === 2) return (stance(parts[0]) && model(parts[1])) || (model(parts[0]) && stance(parts[1]));
-  return parts.length === 1 && (/^(agent|human)$/.test(a) || /^(user|session):[^\s,]+$/.test(a) || stance(a) || model(a));
-}
 /** Live issues not yet committed, whose provenance is still being written; none outside git. */
 function uncommitted(dir: string): string[] {
   const p = spawnSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "."], { cwd: dir, encoding: "utf8" });
@@ -543,7 +536,7 @@ function model(i: Issue, all: Map<string, Issue>, explicit = false) {
     ...subtree(i, all).filter(n => !n.archived && !complete(n, all) && flight.has(n.slug)).map(n => ({ slug: n.slug, claimedBy: flight.get(n.slug)!.join("; "), derived: true })),
   ];
   const selectors = remaining.map(n => ({ slug: n.slug, assignee: n.assignee ?? null }));
-  const eligible = !i.next && remaining.length > 0 && remaining.every(n => n.assignee === "agent" || n.assignee?.startsWith("agent:") || n.assignee?.startsWith("model:"));
+  const eligible = !i.next && remaining.length > 0 && remaining.every(n => parseAssignee(n.assignee)?.kind === "agent");
   const ready = effective === "spec" || effective === "ticket";
   const deferred = nodes.some(n => n.priority === 4);
   return { slug: i.slug, file: i.file, archived: i.archived, legacy: !!i.next, next: i.next,
@@ -1102,7 +1095,7 @@ const open = scoped.filter(i => !i.archived && !complete(i, all));
 const selected = (kind: string) => (kind === "done" ? scoped.filter(i => !i.next && !i.archived && complete(i, all)) : open.filter(i => {
   const m = model(i, all, !!arg);
   if (kind === "frontier") return m.frontier;
-  return !i.next && i.stage !== undefined && i.stage !== "done" && (i.assignee === "human" || i.assignee?.startsWith("user:")) && !openBlockers(i, all).length && !i.claimedBy && (!!arg || i.priority !== 4);
+  return !i.next && i.stage !== undefined && i.stage !== "done" && parseAssignee(i.assignee)?.kind === "human" && !openBlockers(i, all).length && !i.claimedBy && (!!arg || i.priority !== 4);
 })).sort((a, b) => effectivePriority(a, all) - effectivePriority(b, all) || dependents(b.slug, all) - dependents(a.slug, all));
 if (arg && !all.has(arg)) throw new Error("no issue " + arg);
 if (cmd === "lint") {

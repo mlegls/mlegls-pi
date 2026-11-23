@@ -1,3 +1,4 @@
+import { parseAssignee } from "./assignee.ts";
 import { githubMutations } from "./tracker-github-write.ts";
 import { stringify } from "yaml";
 import type { Fields, Issue, Stage, Tracker, TrackerOptions } from "./tracker.ts";
@@ -11,8 +12,6 @@ export { decodeGithubBody, readGithubReceipt, type GithubReceipt } from "./track
 import type { GithubReceipt } from "./tracker-github-state.ts";
 
 const slugOf = (number: number) => "gh-" + number;
-const agentSelector = (value: unknown): value is string => typeof value === "string"
-	&& (value === "agent" || value.startsWith("agent:") || value.startsWith("model:"));
 
 export interface GithubNode {
 	native: GithubIssue;
@@ -65,8 +64,12 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		const receipt = readGithubReceipt(project, snapshot, native);
 		const metadata = { ...decoded.fields };
 		const role = roles[0];
-		const assignee = role === "ready-for-agent" ? (agentSelector(metadata.assignee) ? metadata.assignee : "agent")
-			: role === "ready-for-human" ? (typeof metadata.assignee === "string" && metadata.assignee.startsWith("user:") ? metadata.assignee : "human") : null;
+		const selector = metadata.assignee;
+		const parsed = parseAssignee(selector);
+		// Malformed stored pins never widen to the label's unpinned assignment.
+		const assignee = selector != null && (!parsed || parsed.kind === "session") ? null
+			: role === "ready-for-agent" ? (parsed?.kind === "agent" ? selector as string : "agent")
+			: role === "ready-for-human" ? (parsed?.kind === "human" ? selector as string : "human") : null;
 		const fields: Fields = { ...metadata };
 		const guards = Array.isArray(fields.$guards) ? fields.$guards as string[] : [];
 		delete fields.$guards;
@@ -134,7 +137,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 	for (const [slug, node] of all) {
 		const kids = [...all.values()].filter(child => child.partOf === slug);
 		const receipt = node.receipt;
-		if (node.native.state === "OPEN" && node.assignee && agentSelector(node.assignee)) {
+		if (node.native.state === "OPEN" && parseAssignee(node.assignee)?.kind === "agent") {
 			node.stage = kids.length ? null : node.partOf ? "ticket" : "spec";
 			if (receipt && Object.hasOwn(receipt, "stage")) {
 				requireGithub(receipt.stage === null || receipt.stage !== undefined && ["idea", "goal", "ticket", "spec"].includes(receipt.stage), slug + ": invalid open-issue stage override");
@@ -187,7 +190,7 @@ function projection(all: Map<string, GithubNode>): Map<string, Issue> {
 		}))];
 		const claims = scope.flatMap(id => all.get(id)!.claims.map(claim => ({ ...claim })));
 		const selectors = remaining.map(id => ({ slug: id, assignee: all.get(id)!.assignee }));
-		const eligible = remaining.length > 0 && selectors.every(selector => agentSelector(selector.assignee));
+		const eligible = remaining.length > 0 && selectors.every(selector => parseAssignee(selector.assignee)?.kind === "agent");
 		const effectiveStage = effective.get(slug)!;
 		const ready = effectiveStage === "spec" || effectiveStage === "ticket";
 		return [slug, {

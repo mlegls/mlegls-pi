@@ -2,6 +2,8 @@
 // Semantics follow the tracker skill's references/lifecycle.md; the CLI (issues.ts) computes the same
 // per project and lib/tracker-views.test.ts keeps them in agreement.
 
+import { parseAssignee } from "../../lib/assignee.ts";
+
 export const STAGES = ["idea", "goal", "spec", "ticket", "done"] as const;
 export type Stage = (typeof STAGES)[number];
 
@@ -32,17 +34,8 @@ export function refPath(v: unknown): string | null {
 const list = (v: unknown): unknown[] => v == null ? [] : Array.isArray(v) ? v : [v];
 
 export function assignment(value: unknown): Assignment {
-  if (value === undefined) return { valid: true, agent: false, human: false };
-  if (typeof value !== "string") return { valid: false, agent: false, human: false };
-  const parts = value.split(",").map((s) => s.trim());
-  const stance = /^agent:[a-z][a-z0-9-]*$/;
-  const model = /^model:[^\s,:/]+\/[^\s,:]+:([a-z]+)$/;
-  if (parts.length === 2) return { valid: (stance.test(parts[0]) && model.test(parts[1])) || (model.test(parts[0]) && stance.test(parts[1])), agent: true, human: false };
-  if (parts.length !== 1) return { valid: false, agent: false, human: false };
-  const s = parts[0];
-  if (s !== value) return { valid: false, agent: false, human: false };
-  const human = s === "human" || /^user:[^\s,]+$/.test(s);
-  return { valid: human || s === "agent" || /^session:[^\s,]+$/.test(s) || stance.test(s) || model.test(s), human, agent: s === "agent" || stance.test(s) || model.test(s) };
+  const parsed = parseAssignee(value);
+  return { valid: value === undefined || !!parsed, agent: parsed?.kind === "agent", human: parsed?.kind === "human" };
 }
 
 // Legacy activity records never acquire readiness from an activity label.

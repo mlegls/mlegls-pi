@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { parseAssignee, type Assignee } from "./assignee.ts";
 import type { Fields, Tracker, TrackerOptions } from "./tracker.ts";
 import type { GithubNode } from "./tracker-github.ts";
 import {
@@ -20,7 +21,6 @@ const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(valu
 	value && typeof value === "object" && !Array.isArray(value)
 		? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value)).digest("hex");
 const slugOf = (issue: GithubRelation) => "gh-" + issue.number;
-const agent = (value: unknown): value is string => typeof value === "string" && /^(agent(?::[a-z][\w-]*)?|model:\S+)(,\s*(agent:[a-z][\w-]*|model:\S+))?$/.test(value);
 const guard = (value: unknown): value is string => typeof value === "string" && /^[a-z][a-z0-9-]*: \S/.test(value);
 const stable = (run: GlobalRunState) => "reconcile:" + run.root;
 const attempt = (run: GlobalRunState, token: unknown) => Object.values(run.refinements).find(value => value.claim === token && value.claim === stable(run) + "/" + value.handle);
@@ -112,7 +112,9 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		requireGithub(body === undefined || typeof body === "string" && !body.includes("<!-- mlegls-pi:tracker"), "body must be Markdown without a reserved envelope");
 		for (const key of Object.keys(fields)) requireGithub(!key.startsWith("$") && !["github", "github-comments", "github-types"].includes(key), "read-only/reserved field " + key);
 		if (fields.stage !== undefined && fields.stage !== null) requireGithub(["idea", "goal", "spec", "ticket"].includes(fields.stage as string), "unsupported stage; complete via close");
-		if (fields.assignee !== undefined && fields.assignee !== null) requireGithub(agent(fields.assignee) || fields.assignee === "human" || typeof fields.assignee === "string" && /^user:\S+$/.test(fields.assignee), "unsupported assignee selector");
+		const assignee = parseAssignee(fields.assignee);
+		if (fields.assignee != null) requireGithub(assignee, "invalid assignee selector");
+		requireGithub(assignee?.kind !== "session", "GitHub labels cannot represent the session selector " + fields.assignee);
 		if (fields.author !== undefined && fields.author !== null) requireGithub(typeof fields.author === "string" && fields.author.trim(), "author must be nonempty provenance");
 		if (fields.title !== undefined) requireGithub(typeof fields.title === "string" && fields.title.trim(), "title must be nonempty");
 		if (fields.priority !== undefined && fields.priority !== null) requireGithub([1, 2, 3].includes(fields.priority as number), "priority must be 1, 2 or 3 (the p1|p2|p3 label)");
@@ -147,12 +149,13 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		}
 		for (const [id, node] of rows) if (node.receipt?.stage === null)
 			requireGithub("stage" in fields && fields.stage !== null && id === slug || [...proposed.values()].some(other => other.parent === id), "cannot strand an explicitly delegated parent");
+		return assignee;
 	}
-	function labels(snapshot: GithubSnapshot, issue: GithubIssue | undefined, fields: Fields): string[] {
+	function labels(snapshot: GithubSnapshot, issue: GithubIssue | undefined, fields: Fields, assignee: Assignee | undefined): string[] {
 		let names = issue?.labels.map(label => label.name) ?? [];
-		if ("assignee" in fields) {
+		if (assignee || fields.assignee === null) {
 			names = names.filter(name => !triageRoles.some(role => project.roles[role] === name));
-			if (fields.assignee !== null) names.push(project.roles[agent(fields.assignee) ? "ready-for-agent" : "ready-for-human"]);
+			if (assignee) names.push(project.roles[assignee.kind === "agent" ? "ready-for-agent" : "ready-for-human"]);
 		}
 		if ("priority" in fields) {
 			names = names.filter(name => !/^p[123]$/.test(name));
@@ -196,11 +199,11 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 	function applyUpdate(snapshot: GithubSnapshot, slug: string, fields: Fields, body: string | undefined, run?: GlobalRunState) {
 		const issue = native(snapshot, slug), rows = view(snapshot);
 		requireGithub(rows.has(slug), "cannot update a removed provisional issue");
-		validate(fields, rows, slug, body);
+		const assignee = validate(fields, rows, slug, body);
 		const decoded = decodeGithubBody(issue.body);
 		if ("author" in fields && decoded.fields.author !== undefined) requireGithub(fields.author === decoded.fields.author, "author provenance is immutable");
 		if ("claimed-by" in fields) claimChange(snapshot, issue, rows, run, fields["claimed-by"], (fields["part-of"] ?? rows.get(slug)!.partOf) as string | undefined);
-		const labelIds = labels(snapshot, issue, fields), extra = extras(issue, fields);
+		const labelIds = labels(snapshot, issue, fields, assignee), extra = extras(issue, fields);
 		const input: Record<string, unknown> = { id: issue.id };
 		if ("title" in fields) input.title = fields.title;
 		if (body !== undefined || !isDeepStrictEqual(decoded.fields, extra)) input.body = encodeGithubBody(body ?? decoded.body, extra, decoded.marker);
@@ -260,8 +263,8 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				requireGithub(typeof request.slug === "string" && request.slug.trim() && typeof request.body === "string", "create requires a requested title/slug and Markdown body");
 				const fields: Fields = { ...request.fields, author: request.fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined) };
 				requireGithub(fields.author, "create requires author or PI_SESSION_ID");
-				const rows = view(snapshot); validate(fields, rows, "new", request.body);
-				const labelIds = labels(snapshot, undefined, fields);
+				const assignee = validate(fields, view(snapshot), "new", request.body);
+				const labelIds = labels(snapshot, undefined, fields, assignee);
 				let claim: GithubReceipt["claim"];
 				if ("claimed-by" in fields) {
 					requireGithub(typeof fields["part-of"] === "string", "provisional create requires an existing parent");

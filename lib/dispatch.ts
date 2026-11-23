@@ -3,6 +3,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
+import { parseAssignee } from "./assignee.ts";
 import { integrateThread, workerOf, ThreadMergeConflict, type ThreadCleanup, type WorkerThread } from "./thread";
 import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
 import { CommitHookFailure } from "./thread/commit-hooks";
@@ -59,18 +60,15 @@ export interface Options {
  * session assignees, and an issue without an assignee, are never dispatched automatically. */
 export function assertAssignee(task: Assignment) {
   if (!task.issue && !Object.hasOwn(task, "assignee")) return;
-  const selector = task.assignee?.trim();
-  if (!selector) throw new Error("dispatch: unassigned work cannot be automatically dispatched (" + task.handle + ")");
-  if (selector === "agent") return;
-  if (selector === "human" || /^(user|session):/.test(selector))
-    throw new Error("dispatch: " + task.handle + " is assigned to " + selector);
-  for (const part of selector.split(",").map(p => p.trim())) {
-    const stance = /^agent:([a-z][a-z0-9-]*)$/.exec(part)?.[1];
-    const pin = /^model:([^\s,:/]+\/[^\s,:]+):([a-z]+)$/.exec(part);
-    if (stance) { if (task.agent !== stance) throw new Error("dispatch: " + task.handle + " is assigned to " + part + ", not agent " + task.agent); }
-    else if (pin) { if (task.model !== pin[1] || task.effort !== pin[2]) throw new Error("dispatch: " + task.handle + " is pinned to " + part); }
-    else throw new Error("dispatch: invalid assignee " + selector);
-  }
+  const selector = task.assignee;
+  if (selector == null) throw new Error("dispatch: unassigned work cannot be automatically dispatched (" + task.handle + ")");
+  const parsed = parseAssignee(selector);
+  if (!parsed) throw new Error("dispatch: invalid assignee " + JSON.stringify(selector));
+  if (parsed.kind !== "agent") throw new Error("dispatch: " + task.handle + " is assigned to " + selector);
+  const { stance, pin } = parsed;
+  if (stance && task.agent !== stance) throw new Error("dispatch: " + task.handle + " is assigned to agent:" + stance + ", not agent " + task.agent);
+  if (pin && (task.model !== pin.model || task.effort !== pin.effort))
+    throw new Error("dispatch: " + task.handle + " is pinned to model:" + pin.model + ":" + pin.effort);
 }
 
 /** A submitted worker. Plain data, so it survives being persisted (supervision state); reattach with wm.attach(run, handle). */
