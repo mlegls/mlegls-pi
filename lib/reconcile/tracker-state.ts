@@ -53,23 +53,16 @@ export interface LandingOperation {
 export interface RefinementAttempt {
 	node: string;
 	handle: string;
-	claim: string;
-	baseline: string[];
-	parentFields: import("../tracker.ts").Fields;
-	owned: string[];
+	/** @deprecated Legacy provisional-claim fields; removed at join once GitHub and refinement children land. */
+	claim?: string;
+	baseline?: string[];
+	parentFields?: import("../tracker.ts").Fields;
+	owned?: string[];
 	phase: "writing" | "stopping" | "cleaning" | "adopting" | "accepting" | "accepted" | "removed";
 	worker?: import("../dispatch.ts").Handle;
 	successor?: string;
 	adoptedFrom?: string;
-	acceptance?: {
-		reportTs: string;
-		report: string;
-		children: string[];
-		into: string;
-		destination: string;
-		preparedHead?: string;
-		landedHead?: string;
-	};
+	acceptance?: import("./proposal.ts").RefinementAcceptanceReceipt;
 }
 
 export const workerPhases = ["refine", "implement", "drive", "review"] as const;

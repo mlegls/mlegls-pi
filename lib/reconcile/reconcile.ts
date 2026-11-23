@@ -507,8 +507,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		if (changed) save();
 		return schedulingView(rows, { root: s.root, into: logicalInto, landed: s.landed, inherited,
-			attemptClaims: new Set([...attempts.map(a => a.claim), ...Object.keys(s.workerSessions ?? {}).map(id => "session:" + id)]),
-			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
+			attemptClaims: new Set([...attempts.flatMap(a => a.claim ? [a.claim] : []), ...Object.keys(s.workerSessions ?? {}).map(id => "session:" + id)]),
+			withheld: new Set(attempts.flatMap(a => a.owned ?? [])), explicit: true });
 	};
 	const completion = { state: s, tracker, save, pathOf, locked,
 		holdEvidence: (slug: string, text: string) => raise(slug, EVIDENCE_MISSING, text, view(destination())),
@@ -667,7 +667,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const claimed = (text: string) => {
 					if (!refining) return text;
 					const writer = s.refinements[actual];
-					return text + "\n\nRefinement baseline: " + writer.baseline.join(", ") + ". Keep these contracts unclaimed or reserved with stable claimed-by: reconcile:" + s.root
+					return text + "\n\nRefinement baseline: " + (writer.baseline ?? []).join(", ") + ". Keep these contracts unclaimed or reserved with stable claimed-by: reconcile:" + s.root
 						+ ". If one still carries a removed attempt's claim from this run, reserve it with the stable claim through the tracker. Leave foreign claims alone."
 						+ "\nCreate provisional children through the tracker with this exact claimed-by token, atomically with part-of: " + writer.claim
 						+ "\nChildren already transferred by live-attempt adoption keep that provisional token. Report all open direct children, including retained baseline children.";

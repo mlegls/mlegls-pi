@@ -66,8 +66,9 @@ function stillOwned(context: RefinementContext, attempt: RefinementAttempt, rows
 
 function remember(context: RefinementContext, handle: string, slugs: string[]): void {
 	const attempt = attemptOf(context, handle);
-	const added = slugs.filter(slug => !attempt.owned.includes(slug));
-	if (added.length) persist(context, () => attemptOf(context, handle).owned.push(...added));
+	const owned = attempt.owned ?? [];
+	const added = slugs.filter(slug => !owned.includes(slug));
+	if (added.length) persist(context, () => { (attemptOf(context, handle).owned ??= []).push(...added); });
 }
 
 /** Save original subtree identities + parent fields before the writer launches. */
@@ -107,7 +108,7 @@ function assertAbortable(context: RefinementContext, attempt: RefinementAttempt)
 	if (intent?.landedHead || (intent?.preparedHead && isAncestor(intent.destination, intent.preparedHead)))
 		throw new Error("Recover refinement claim conversion before replacing: " + attempt.handle + " (stubs already landed)");
 	const converted = subtree(context.tracker.snapshot(), attempt.node).some(row =>
-		!attempt.baseline.includes(row.slug) && attempt.owned.includes(row.slug)
+		!(attempt.baseline ?? []).includes(row.slug) && (attempt.owned ?? []).includes(row.slug)
 		&& context.tracker.fields(row.slug)["claimed-by"] === stableClaim(context));
 	if (converted) throw new Error("Recover refinement claim conversion before replacing: " + attempt.handle);
 }
@@ -138,9 +139,9 @@ async function discard(context: RefinementContext, handle: string): Promise<void
 		const parent = leaf.partOf ? rows.get(leaf.partOf) : undefined;
 		if (parent?.ownStage === null && ![...rows.values()].some(row => row.partOf === parent.slug && row.slug !== leaf.slug)) {
 			if (parent.slug === attempt.node) {
-				const stage = attempt.parentFields.stage;
+				const stage = attempt.parentFields?.stage;
 				if (typeof stage !== "string") throw new Error("No saved residual stage for " + parent.slug);
-				context.tracker.update(parent.slug, { stage, decompose: attempt.parentFields.decompose ?? null });
+				context.tracker.update(parent.slug, { stage, decompose: attempt.parentFields?.decompose ?? null });
 			} else if (stillOwned(context, attempt, rows).some(row => row.slug === parent.slug)) {
 				// A provisional container has no saved residual of its own. Give it
 				// a temporary executable residual before pruning its final child.
@@ -213,8 +214,8 @@ export async function replaceRefinement(context: RefinementContext, oldHandle: s
 		persist(context, () => {
 			context.state.refinements[newHandle] = {
 				node: old.node, handle: newHandle, claim: stableClaim(context) + "/" + newHandle,
-				baseline: [...old.baseline], parentFields: structuredClone(old.parentFields),
-				owned: [...old.owned], phase: "adopting", adoptedFrom: oldHandle,
+				baseline: [...(old.baseline ?? [])], parentFields: structuredClone(old.parentFields ?? {}),
+				owned: [...(old.owned ?? [])], phase: "adopting", adoptedFrom: oldHandle,
 			};
 			attemptOf(context, oldHandle).phase = "adopting";
 			attemptOf(context, oldHandle).successor = newHandle;
@@ -231,25 +232,25 @@ function validateAcceptance(context: RefinementContext, handle: string, children
 	// Read the current global prompt contract too; no worker branch fallback.
 	if (!context.tracker.text(node.slug).trim()) throw new Error("Empty refinement contract: " + node.slug);
 	const fields = context.tracker.fields(node.slug);
-	if ((fields["part-of"] ?? null) !== (attempt.parentFields["part-of"] ?? null))
+	if ((fields["part-of"] ?? null) !== (attempt.parentFields?.["part-of"] ?? null))
 		throw new Error("Refinement moved its own execution scope: " + node.slug);
 	const direct = [...rows.values()].filter(row => row.partOf === node.slug && !row.archived && !row.done).map(row => row.slug);
 	if (new Set(children).size !== children.length || children.length !== direct.length || children.some(slug => !direct.includes(slug)))
 		throw new Error("Reported refinement children do not match open direct children: " + direct.join(", "));
 	const stages: readonly string[] = STAGES;
-	const original = normalizeStage(attempt.parentFields.stage) ?? "ready";
+	const original = normalizeStage(attempt.parentFields?.stage) ?? "ready";
 	if (!node.ready || stages.indexOf(node.effectiveStage!) < stages.indexOf(original))
 		throw new Error("Refinement lowered the effective stage: " + node.slug);
 	if (!children.length && (node.ownStage !== "ready" || node.effectiveStage !== "ready" || fields.decompose === true))
 		throw new Error("Empty refinement report is not a promotion (stage ready, decompose: false): " + node.slug);
-	const baseline = new Set(attempt.baseline);
+	const baseline = new Set(attempt.baseline ?? []);
 	const scope = subtree(rows, node.slug);
 	for (const row of scope) {
 		const claim = context.tracker.fields(row.slug)["claimed-by"];
 		const owned = row.slug !== node.slug && !baseline.has(row.slug);
 		// A stable claim is replay authority only for recorded creation ownership
 		// within this saved acceptance intent, never for a new unrelated identity.
-		const converted = replay && attempt.owned.includes(row.slug) && claim === stableClaim(context);
+		const converted = replay && (attempt.owned ?? []).includes(row.slug) && claim === stableClaim(context);
 		if (owned && (row.archived || row.done)) throw new Error("Non-executable provisional child: " + row.slug);
 		if (owned ? claim !== attempt.claim && !converted : claim !== undefined && claim !== stableClaim(context))
 			throw new Error("Foreign or missing refinement claim: " + row.slug + (owned

@@ -102,7 +102,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		if (value !== stable(run)) {
 			requireGithub(target && ["writing", "adopting"].includes(target.phase), "no writable exact attempt authority for " + value);
 			requireGithub(parent && contains(rows, parent, target.node), "provisional child is outside its attempt subtree");
-			requireGithub(!issue || (!target.baseline.includes(slugOf(issue)) && slugOf(issue) !== target.node), "cannot claim a baseline as provisional");
+			requireGithub(!issue || (!(target.baseline ?? []).includes(slugOf(issue)) && slugOf(issue) !== target.node), "cannot claim a baseline as provisional");
 		}
 		if (previous && previous.claimedBy !== value) {
 			const source = attempt(run, previous.claimedBy);
@@ -355,7 +355,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				requireGithub(run, "remove requires saved run authority");
 				const owner = attempt(run, claim.claimedBy);
 				requireGithub(owner && (["writing", "stopping", "cleaning"].includes(owner.phase) || pending && owner.phase === "removed" && !owner.successor)
-					&& !owner.baseline.includes(slug) && owner.node !== slug && (!pending || pending.claim.claimedBy === claim.claimedBy), "remove requires still-owned provisional child");
+					&& !(owner.baseline ?? []).includes(slug) && owner.node !== slug && (!pending || pending.claim.claimedBy === claim.claimedBy), "remove requires still-owned provisional child");
 				const rows = view(snapshot);
 				requireGithub(contains(rows, slug, owner.node) || journal.removes[slug], "provisional child moved outside attempt");
 				requireGithub(![...rows].some(([id, row]) => id !== slug && (row.partOf === slug || row.blockedBy.includes(slug))), "retained children/dependents prevent removal");
