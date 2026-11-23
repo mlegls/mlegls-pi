@@ -1,7 +1,7 @@
 ---
 name: tidy
 description: Review at a join, where several children's changes landed together and must be reconciled across their seams.
-model: anthropic/claude-opus-5-5:medium, openai/gpt-6.2-astra:medium
+model: openai/gpt-6.2-astra:medium, anthropic/claude-opus-5-5:medium
 role: review
 ---
 
