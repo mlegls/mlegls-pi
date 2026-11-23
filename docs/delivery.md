@@ -2,7 +2,7 @@
 
 Locate the real situation and want behind a request; preserve its origin. Stories are durable product understanding, not one document per issue. In this repository, existing task docs can supply that context; add small linked stories when a distinct purpose needs one rather than inventing a retrospective catalog.
 
-Story → spec/tickets → implementation → first use (guide + recording) → reviewed replay → acceptance.
+Story → ready issues → implementation → first use (guide + recording) → reviewed replay → acceptance.
 
 Planning settles intended behavior and makes first use possible: starting state, surface, setup and any missing drive machinery. It does not write an assertion inventory. The implementation supplies that setup along with the behavior.
 

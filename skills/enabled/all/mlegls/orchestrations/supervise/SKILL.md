@@ -6,7 +6,7 @@ argument-hint: "an issue whose subtree is agent-ready, or a root whose ready sub
 
 At entry, run `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` from the project once per campaign (advisory; errors mean unavailable evidence). Reconcile triage signals before selecting work.
 
-Supervising an issue commits to finishing its whole subtree. Shaping has already refined every child to spec/ticket or moved it out of the tree; a child that cannot be finished is an exception to recover from, not scope to trim. Discoveries start a separate idea tree (`tracker`), never a child of this issue.
+Supervising an issue commits to finishing its whole subtree. Shaping has already brought every child to ready or moved it out of the tree; a child that cannot be finished is an exception to recover from, not scope to trim. Discoveries start a separate idea tree (`tracker`), never a child of this issue.
 
 Your parent is the supervisor that dispatched you, or the user when you are the root. Keep it oriented: established outcomes, remaining work, live streams and decisions needed (`attention`). At a root without a single agent-ready issue, such as the whole project, dispatch supervisors only on the ready subtrees the tracker frontier lists; everything else belongs to shaping.
 

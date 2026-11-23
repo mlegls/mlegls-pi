@@ -15,7 +15,8 @@ filename is the identity and title; no H1. links are vault-absolute wikilinks `[
 ## frontmatter
 
 ```yaml
-stage: idea | goal | spec | ticket | done
+stage: idea | ready | done
+decompose: true                 # ready, too big for one session: refine first
 assignee: agent
 author: session:<origin>
 part-of: "[[projects/<repo>/issues/<parent>]]"
@@ -28,7 +29,7 @@ Omit stage only when all residual work is delegated to children; null is invalid
 
 `bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|done|tree [slug] | snapshot [slug] | check [--fix [moved issue paths...]] | outline`. Scope explicitly selects deferred work too. Frontier uses whole-subtree readiness, eligibility, blockers and conservative claims; mine uses explicit human/user assignment including pre-spec shaping; done exposes live results for digestion. Tree shows own and effective stage. Outline reconciles the project vault note. `snapshot --json` (or query `--json`) provides schemaVersion, lifecycle issues and a separate legacy collection; rows expose ownStage, effectiveStage, ready, eligible, frontier, blockers, claims, selectors and done. Omitted ownStage is serialized as null, not valid stored YAML. JSON is a model projection; run `check` separately for diagnostics.
 
-`check` also flags a spec or ticket whose effective stage is lower than its own in an all-agent subtree (it names the child to park for human shaping, retaining `part-of`), a `docs/frictions.md` beside a vault tracker, and a new uncommitted issue without `author`.
+`check` also flags a ready issue whose effective stage is lower than its own in an all-agent subtree (it names the child to park for human shaping, retaining `part-of`), a `docs/frictions.md` beside a vault tracker, and a new uncommitted issue without `author`.
 
 `check` is read-only: it reports dangling links and available archive/heading repairs, exiting nonzero for findings. `check --fix <moved issue paths...>` takes paths to archived issue files, relative to the current working directory or absolute, and only repairs links, and drops `blocked-by` links, whose targets are those files; other repairs remain reported. Without paths, `check --fix` applies all link repairs and drops every `blocked-by` link to a done issue (guards and live blockers stay). Each repair prints as `fixed`; other diagnostics still require review. Same-project vault links resolve against the canonical vault in the git common dir's main worktree. Other projects resolve through the vault.
 
@@ -60,15 +61,15 @@ each stage adds to the body; nothing before it is thrown away, so an issue reads
 idea: what was noticed or wanted, with its source quoted verbatim (@thread:…, the story, the evidence).
 rough is fine (`universal.md`'s tip on prose applies).
 
-goal: the same prose, edited until it's decided: what we're doing, for which story, what it leaves out.
+then the same prose, edited until it's decided: what we're doing, for which story, what it leaves out.
 holes: bullets, each linking its resolution once it has one.
 
-## shape                       (spec)
+## shape                       (ready, where the outcome alone leaves the build to guess)
 Shape Up's level: the elements and where each lives, sketched as `show-me` does (call tree,
 file tree, diff, types, mermaid); rabbit holes already patched; what's out. enough that a
 capable agent builds it without coming back, short of being the code.
 
-## tasks                       (ticket, only when the shape doesn't already say what to do)
+## tasks                       (only when the shape doesn't already say what to do)
 1. …
 
 decisions:
@@ -77,7 +78,7 @@ decisions:
 ## result                      (done, per `pr`)
 ```
 
-a spec's children are goal prose for their part, plus the shape that's theirs or a link to the parent's. when parallel children meet at a shared interface (one schema, many implementations), whoever splits the issue writes that interface as code and commits it first, so each child starts from it. a hole is its own issue when it's a session on its own or matters to more than one parent. a question is the same file with the question up top and `## answer` when it has one. preserve the distinction between what we chose and what we used to explore the choice.
+a decomposed issue's children are goal prose for their part, plus the shape that's theirs or a link to the parent's. when parallel children meet at a shared interface (one schema, many implementations), whoever splits the issue writes that interface as code and commits it first, so each child starts from it. a hole is its own issue when it's a session on its own or matters to more than one parent. a question is the same file with the question up top and `## answer` when it has one. preserve the distinction between what we chose and what we used to explore the choice.
 
 a later finding or ruling edits the goal, shape or tasks in place and adds a decisions line; it doesn't append a dated section. a decisions line is a choice someone made, and it replaces the line it supersedes. an escalation, a recommendation or where a step stands isn't a decision: it goes to whoever decides, or into the tasks. state the current state; git is the history, `docs/attachments/` the evidence.
 
@@ -113,8 +114,8 @@ Pass only the keys you intend to change. For an edit based on a read, read with 
 Copyable create/update for an existing `example-parent` (`PI_SKILL_DIR` names this tracker skill; `PI_SESSION_ID` is your session; the supplied `CLAIM_TOKEN` is `reconcile:<root>/<refine-handle>` during refinement):
 
 ```sh
-printf '%s\n' 'The child'\''s goal and shape.' | bun "$PI_SKILL_DIR/scripts/issues.ts" create example-child --fields "{\"stage\":\"ticket\",\"assignee\":\"agent:auto-routine\",\"author\":\"session:$PI_SESSION_ID\",\"part-of\":\"example-parent\",\"claimed-by\":\"$CLAIM_TOKEN\"}" --body-file -
-printf '%s\n' 'The parent'\''s goal and shape, with its tasks.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ticket","priority":null}' --body-file -
+printf '%s\n' 'The child'\''s goal and shape.' | bun "$PI_SKILL_DIR/scripts/issues.ts" create example-child --fields "{\"stage\":\"ready\",\"assignee\":\"agent:auto-routine\",\"author\":\"session:$PI_SESSION_ID\",\"part-of\":\"example-parent\",\"claimed-by\":\"$CLAIM_TOKEN\"}" --body-file -
+printf '%s\n' 'The parent'\''s goal and shape, with its tasks.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ready","priority":null}' --body-file -
 ```
 
 `check` prints tracker attachment locators as `issues/attachments/<file>.md`. Use `text <locator>` to read one or `update <locator> --body-file <path|->` to replace the entire Markdown file. The `issues/` prefix and `.md` extension are optional. Attachment updates are for existing files and use no issue fields.
@@ -129,4 +130,4 @@ A ticket's code, shared interface stubs, already-authorized tests and `docs/atta
 
 resolve: record the answer or satisfy recorded acceptance (including story verification) and actually land the code in its owner's target, then close with the result. Under a reconciler, workers supply their handoffs and leave closing to it after target landing. Collector-landed code remains pending in the landing ledger, visible as derived inflight, not globally done. Closing drops the claim and removes resolved dependent blockers. Leave the result live for review/digestion; move to `archive/` once it has fulfilled its enclosing purpose. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
 
-friction: a reproduced defect with a decided repair as a `stage: ticket` with its Done when, anything awaiting diagnosis, recurrence or a decision as `stage: idea`; immutable `author: session:<origin>`, the observation raw with its originating story and evidence. Priority follows observed impact; unknown impact stays unknown. Ideas are triaged before execution.
+friction: a reproduced defect with a decided repair as a `stage: ready` with its Done when, anything awaiting diagnosis, recurrence or a decision as `stage: idea`; immutable `author: session:<origin>`, the observation raw with its originating story and evidence. Priority follows observed impact; unknown impact stays unknown. Ideas are triaged before execution.
