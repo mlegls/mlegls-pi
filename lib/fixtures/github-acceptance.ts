@@ -9,14 +9,18 @@ import { getGithubTracker } from "../tracker-github.ts";
 
 export function setupCheckout(dir: string, issues: ReturnType<typeof issue>[]) {
 	const cwd = join(dir, "checkout");
-	mkdirSync(join(cwd, "docs/agents"), { recursive: true });
+	mkdirSync(cwd, { recursive: true });
 	git(cwd, "init", "-q");
-	git(cwd, "remote", "add", "origin", "https://github.com/fixture/tracker.git");
-	writeFileSync(join(cwd, "docs/agents/issue-tracker.md"), "# Issue tracker: GitHub\nRepository: fixture/tracker\n");
-	writeFileSync(join(cwd, "docs/agents/triage-labels.md"), ["| Role | Label |", "| --- | --- |", ...ROLES.map(role => "| " + role + " | " + role + " |")].join("\n"));
+	configureGithub(cwd);
 	git(cwd, "add", "docs");
 	git(cwd, "-c", "user.name=fixture", "-c", "user.email=fixture@localhost", "-c", "commit.gpgSign=false", "commit", "-qm", "Collector");
 	return { cwd, fake: installFakeGh(join(dir, "bin"), newState(issues)) };
+}
+export function configureGithub(cwd: string) {
+	mkdirSync(join(cwd, "docs/agents"), { recursive: true });
+	git(cwd, "remote", "add", "origin", "https://github.com/fixture/tracker.git");
+	writeFileSync(join(cwd, "docs/agents/issue-tracker.md"), "# Issue tracker: GitHub\nRepository: fixture/tracker\n");
+	writeFileSync(join(cwd, "docs/agents/triage-labels.md"), ["| Role | Label |", "| --- | --- |", ...ROLES.map(role => "| " + role + " | " + role + " |")].join("\n"));
 }
 export function proposed(alias: string, parent: string, blockers?: string[]): ProposedChild {
 	return { alias, fields: { stage: "ready", assignee: "agent", author: "session:fixture", "part-of": parent, ...(blockers && { "blocked-by": blockers }) }, body: alias + "\n" };

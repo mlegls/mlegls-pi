@@ -21,4 +21,6 @@ Also run on the final head: `bun test lib/reconcile/refinement.test.ts lib/recon
 
 - Seam: the engine's `resolveProposedChild` defaults a missing child `stage` to `ready` (a container gets `stage: null` once its children exist). The GitHub sibling's fixture proposed a stageless leaf, which `readProposal` would reject, so its create request no longer matched the receipt. 428d7e5c gives the fixture `stage: "ready"`; no assertion changed.
 - ce15bc0e drops blank lines left where provisional code was cut from reconcile.ts and scheduling.ts.
-- `RefinementAttempt` still carries the deprecated provisional fields in tracker-state.ts (the ticket leaves that file alone); legacy non-terminal phases (`stopping`, `cleaning`, `adopting`) from a pre-change run are now ignored rather than cleaned. `Tracker.remove` has no callers left.
+- At the join, `RefinementAttempt` dropped the provisional fields and legacy phases. The pre-landing run-state scan on 2026-11-23 found only terminal attempts: Concept 118 accepted / 20 removed; mlegls-pi 7 accepted / 1 removed.
+
+GitHub join replay: `bun docs/attachments/refinement-creates-children-atomically-on-acceptance/github.ts`. Fake `gh` loses the first `createIssue` response after creating the provider. A fresh adapter and engine read the run from disk; the resulting issues are `gh-2` (provider) and `gh-3` (consumer, blocked by `gh-2`). Two create calls total; only the interface commit reaches the collector.
