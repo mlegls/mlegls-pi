@@ -279,7 +279,6 @@ export function assertThreadState(state?: State): void {
 		throw new Error("Pre-ledger reconciler state for " + state.root + ": manually rebuild the landing ledger, reviewed results, pending landing operations and refinement attempts from the original run before restarting; no automatic migration or issue-blob inference is supported (" + state.cwd + ")");
 }
 
-
 /** Every worker receipt a run holds. */
 export function workerHandles(s: State): Handle[] {
 	return [
@@ -495,7 +494,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		catch (e) { throw e instanceof GithubRateLimited ? e : new Error("tracker snapshot failed in " + cwd + " (fix the tracker; the reconciler resumes by itself): " + String((e as Error)?.message ?? e).replace(/^error:\s*/, "")); }
 	};
 	const view = (into: string): Map<string, Issue> => {
-
 		// Dispatch passes a checkout path; collector progress is keyed by its logical issue.
 		const logicalInto = Object.entries(s.collectors).find(([, collector]) => collector.path === into)?.[0] ?? into;
 		// A landing into an enclosing collector counts here once this destination contains its head.
@@ -644,7 +642,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		try {
 			if (tracker.githubIssue && issue && (role === "refine" || role === "implement")) {
 				const current = view(into).get(issue.slug);
-
 				const agentReady = current?.assignee === "agent" || current?.assignee?.startsWith("agent:") || current?.assignee?.startsWith("model:");
 				if (!current || !agentReady || current.claims.length || !current.frontier)
 					throw new Error("GitHub node is not ready, agent-eligible and unclaimed: " + issue.slug);
@@ -961,7 +958,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
-
 		const adopted = typeof r.commit === "string" && /^[0-9a-f]{7,64}$/i.test(r.commit) ? commitRef(controlCwd, r.commit) : undefined;
 		if (r.commit !== undefined && (!adopted || !c || !["answer", "retry", "redispatch"].includes(r.action))) {
 			tellOwner("Adoption requires an existing commit ID and an answer, retry or redispatch for a running chain. The exception stays pending.");
@@ -1206,7 +1202,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 							+ (next.verdicts?.at(-1)?.outcome === "failed" ? "\n\nRepair the failed gate's cause and rerun it. The ticket remains open." : "\n\nRun the pending checks against the landed target.")
 							+ " Record each result separately: tools.reconcile_resolve({issue: " + JSON.stringify(s.root) + ", node: " + JSON.stringify(ex.node)
 							+ ', action: "post-landing", check: ' + JSON.stringify(next.id) + ', outcome: "passed" | "failed", evidence: "run URL or concrete observation"}).');
-
 					} else tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + (ex.baseConflict ? clip(ex.text, 6000) : ex.text.slice(-3000)) + "\n\nResolve with tools.reconcile_resolve({issue: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, commit?, checkout?, message?, note?, summary?}). Move-out retires the workers. For an open issue, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
@@ -1307,7 +1302,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (preserveTracker) await retireTelling(h, pathOf(c.into), finished);
 			else await retireHandle(h, pathOf(c.into), finished);
 		}
-
 	}
 	/** A landed node's workers join its landing receipt, which outlives the chain: the receipt alone may predate them, when
 	 * the landing was recorded from an earlier integration attempt's receipt (2026-10-25, Concept: a receipt naming
@@ -1452,7 +1446,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined;
 		const h = c.handle!, text = m.body;
 		const phase = c.phase = c.phase === "integrate" ? "review" : c.phase;
-
 		if (m.tags.includes("interrupted")) {
 			const hasCheckout = existsSync(h.path);
 			const head = (hasCheckout ? commitRef(h.path, "HEAD") : undefined) ?? commitRef(controlCwd, "refs/heads/" + h.handle);
@@ -1937,7 +1930,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			issue = view(into).get(slug)!;
 		}
 		const refining = s.chains[slug]?.phase === "refine";
-
 		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i));
 		if (kids.length && !s.chains[slug]) {
 			if (s.exceptions[slug]) return "active";
@@ -2115,7 +2107,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
 			c.retries.relaunch = (c.retries.relaunch ?? 0) + 1;
 			if (c.retries.relaunch > BUDGET.relaunch) {
-
 				raise(slug, c.phase + " worker died " + BUDGET.relaunch + " times", "worktree " + c.handle.path, issues);
 			}
 			else {

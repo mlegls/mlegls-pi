@@ -6,7 +6,6 @@ import type { LandingLedger } from "./tracker-state.ts";
 export interface ScheduledIssue extends Issue {
 	blockers: string[];
 	satisfied: boolean;
-
 }
 export interface SchedulingContext {
 	root: string;
