@@ -26,7 +26,7 @@ const fencePattern = /^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(json|yaml|yml)[ \t]*\r?\n
 function firstStatus(text: string, structuredStatuses: unknown[]): { status: Status | null; error: string | null } {
   const lines = text.split(/\r?\n/);
   const statusAt = (line: string): Status | null => {
-    const token = line.trim().replace(/^[*_]+/, "");
+    const token = line.trim().replace(/^(?:(?:>+\s*)|(?:#{1,6}\s*)|(?:[-+*]\s+)|(?:\*\*|__|\*|_))*/, "");
     const match = /^(done|blocked|needs-input|checkpoint|waiting)(?=$|[\s*_`:#—–.!?,;])/i.exec(token);
     return match ? match[1].toLowerCase() as Status : null;
   };
