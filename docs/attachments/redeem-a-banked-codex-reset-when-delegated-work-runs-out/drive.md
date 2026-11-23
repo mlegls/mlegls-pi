@@ -24,3 +24,12 @@
 - Run `--interactive 0`; accept fallback `zai`, zero WHAM requests and zero pushes.
 
 No blocking friction. Pi labels its route `openai`, whereas native BB labels it `codex`; compare routes within each run. The supplied fixture observes the BB invocation, not delivery to a device. No live credits were spent and no services were left running.
+
+
+## Review at the reviewer's head
+
+Re-ran all three recipe commands after the review repairs: same request sequences (GET; GET + one POST naming `earlier` with a nonempty `redeem_request_id`; GET), stable routes (`openai` in Pi, `codex` native), one log and one push per delegated run; `--interactive 0` routed to `zai` with no requests. `tsc --noEmit` clean.
+
+Repairs: `workerExecution` again gates a `pi/<provider>/<model>` route by its inner provider (the change had passed the outer `pi`, which no allocation entry names, so such routes went ungated); `docs/dispatch.md` no longer describes `allocation.json`'s `resets` and the desktop notice.
+
+The `openai`/`codex` label difference is each route's own provider name (Pi's openai provider, BB's native codex provider), both on the `codex` quota; accepted as is.
