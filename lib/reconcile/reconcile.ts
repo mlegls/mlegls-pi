@@ -46,6 +46,7 @@ import { captureWorkerForeignWork } from "./foreign-work.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { changedFiles, repairNeedsReview, type LandingRepair } from "./landing.ts";
 import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVerdict } from "./post-landing.ts";
+import { PROPOSAL_DIR } from "./proposal.ts";
 import { acceptRefinement, beginRefinement, recoverRefinements } from "./refinement.ts";
 import type { GlobalRunState, WorkerPhase } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
@@ -1890,6 +1891,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const attempt = s.refinements[c.refinement!];
 		if (attempt.phase !== "accepted" || !attempt.acceptance) throw new Error("Refinement not accepted: " + slug);
 		const intent = attempt.acceptance;
+		// A needs-input/checkpoint can have pinned a draft commit for the next
+		// refiner. Later phases inherit its stripped interface in the collector.
+		const pins = s.launchCheckpoints?.[slug];
+		if (pins && intent.landedHead) for (const head of Object.keys(pins)) {
+			if (!git(controlCwd, "log", "-1", "--format=%H", intent.landedHead + ".." + head, "--", PROPOSAL_DIR)) continue;
+			delete pins[head];
+			pins[intent.landedHead] = intent.landedHead;
+		}
 		c.handledTs = intent.reportTs;
 		if (intent.children.length) {
 			note("decomposed " + slug + " into " + intent.children.join(", "));

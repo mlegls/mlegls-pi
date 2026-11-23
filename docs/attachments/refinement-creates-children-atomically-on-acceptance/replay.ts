@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { protocolFixture } from "../../../lib/reconcile/protocol-fixture";
 import { load, saveState, type State } from "../../../lib/reconcile/reconcile";
-import { stop } from "../../../lib/reconcile/main";
+import { resolveException, stop } from "../../../lib/reconcile/main";
 
 const owner = "thr_fixture", cli = join(import.meta.dir, "../../../lib/reconcile/main.ts");
 const modes = ["create", "stop", "promote"];
@@ -47,8 +47,10 @@ for (const mode of modes.filter(m => !selected || selected === m)) {
 			console.log("stop: writer retired; tracker tree unchanged:", before);
 			continue;
 		}
-		f.bb.completeTurn(worker.path, "done\n\n```json\n" +
-			JSON.stringify({children: mode === "create" ? ["consumer", "provider"] : []}) + "\n```");
+		const done = "done\n\n```json\n" +
+			JSON.stringify({children: mode === "create" ? ["consumer", "provider"] : []}) + "\n```";
+		const draft = f.git(worker.path, "rev-parse", "HEAD");
+		f.bb.completeTurn(worker.path, mode === "promote" ? "needs-input\n\n```json\n" + JSON.stringify({ commit: draft, question: "Promote this contract?" }) + "\n```" : done);
 		const wrapper = join(f.root, "tracker.ts");
 		writeFileSync(wrapper, [
 			"const args = process.argv.slice(2);",
@@ -76,6 +78,15 @@ for (const mode of modes.filter(m => !selected || selected === m)) {
 			console.log("SIGKILL after provider was published and before its receipt was saved");
 		}
 		launch(false);
+		if (mode === "promote") {
+			await until(() => !!state().exceptions.root?.mailed, "refiner awaiting answer");
+			assert.equal(state().refinements[worker.handle].phase, "writing");
+			resolveException(f.cwd, "root", "root", { action: "answer", message: "Promote this contract." }, owner);
+			await until(() => !state().exceptions.root, "answer delivered");
+			assert.equal(state().chains.root.handle?.bb, worker.bb);
+			assert.ok(f.bb.threads().find(t => t.id === worker.bb)?.tells.includes("Promote this contract."));
+			f.bb.completeTurn(worker.path, done);
+		}
 		const target = mode === "create" ? "provider" : "root";
 		await until(() => state().chains[target]?.phase === "implement" && !!state().chains[target]?.handle, "implement launch");
 		const receipt = state().refinements[worker.handle];
