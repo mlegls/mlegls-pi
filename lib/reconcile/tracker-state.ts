@@ -53,15 +53,8 @@ export interface LandingOperation {
 export interface RefinementAttempt {
 	node: string;
 	handle: string;
-	/** @deprecated Legacy provisional-claim fields; removed at join once GitHub and refinement children land. */
-	claim?: string;
-	baseline?: string[];
-	parentFields?: import("../tracker.ts").Fields;
-	owned?: string[];
-	phase: "writing" | "stopping" | "cleaning" | "adopting" | "accepting" | "accepted" | "removed";
+	phase: "writing" | "accepting" | "accepted" | "removed";
 	worker?: import("../dispatch.ts").Handle;
-	successor?: string;
-	adoptedFrom?: string;
 	acceptance?: import("./proposal.ts").RefinementAcceptanceReceipt;
 }
 
