@@ -4,7 +4,7 @@ assignee: "agent:technical"
 priority: 2
 author: "session:thr_pgxs7mv9k9"
 part-of: "[[projects/mlegls-pi/issues/refinement-creates-children-atomically-on-acceptance]]"
-claimed-by: "reconcile:refinement-creates-children-atomically-on-acceptance/refinement-creates-children-atomically-on-acceptance-refine-2"
+claimed-by: "reconcile:refinement-creates-children-atomically-on-acceptance"
 ---
 Authorize GitHub `Tracker.create` with the stable run claim `reconcile:<root>` from saved refinement acceptance, correlate create-journal replay without cross-parent alias collisions, and remove dead provisional-attempt token authority on GitHub. Part of [[projects/mlegls-pi/issues/refinement-creates-children-atomically-on-acceptance]], meeting [[projects/mlegls-pi/issues/atomic-proposal-refinement-engine]] at the shared contract in [proposal.ts](../../lib/reconcile/proposal.ts) (`369f35de`).
 
