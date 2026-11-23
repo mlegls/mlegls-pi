@@ -22,7 +22,7 @@ The index records:
 
 A few well-chosen frames usually suffice. Keep broad device/locale matrices and hypothesis-driven audits separately scoped. Existing Playwright recording and `bun ~/dev/mlegls-pi/lib/cards.ts <shots-dir>` cover traces and labeled contact sheets; preserve the originals for close inspection.
 
-For supervised driving and review, use this handoff (paths are repository-relative files, not directories). The driver adds `frictions`, `expectations` and `checks`, omits `tests` and may report `failed` stories; the reviewer lists any kept or authorized test files changed and may set `redrive: true` once when its repairs changed behavior the tests don't cover:
+For supervised driving and review, use this handoff (paths are repository-relative files, not directories). The driver adds `frictions`, `expectations` and `checks`, omits `tests` and may report `failed` stories; the reviewer lists any kept or authorized test files changed and re-drives what its repairs changed itself:
 
 ```yaml
 stories:
@@ -63,7 +63,7 @@ Ordinary integration gates still run. The issue stays open after its code reache
 
 The reviewer receives the ticket, the diff and the driver's packet. For visual packets it is a visual reviewer. Open the actual screenshots (contact sheets first when useful) and judge the required claims. If you have the context and authority to repair a gap, repair it directly, re-drive the affected behavior and refresh the evidence. Collect missing states yourself when practical. Commit the repairs and your judgment with current image references to the packet index. Pre-fix images cannot establish a repaired outcome. Use the same `stories`/`evidence` handoff, not the standalone reviewer's `data: {blocking, nits}` format. Missing states remain `unobservable` until observed. Unrelated improvements are nonblocking observations with their own owner.
 
-A handoff should buy missing capability, context, authority or lower total cost, not preserve role purity. Repair size alone does not decide it. Use `resume … verify` when a fresh collector is actually useful; scope changes go to shaping. A reviewer's repair does not automatically require another reviewer: re-drive what changed, refresh the evidence, and finish. The loop retains earlier workers until integration or explicit disposal. `resume … integrate` retries an accepted integration; it does not waive acceptance, and edits after acceptance need updated evidence.
+A handoff should buy missing capability, context, authority or lower total cost, not preserve role purity. Repair size alone does not decide it. Scope changes go to shaping. A reviewer's repair does not automatically require another reviewer: re-drive what changed, refresh the evidence, and finish. The loop retains earlier workers until integration or explicit disposal. Edits after acceptance need updated evidence.
 
 Changing an acceptance gate requires checking its sensitivity: after relaxing a screenshot tolerance, try a known-bad change or leave sensitivity explicitly unverified. A small important regression may occupy fewer than 2% of pixels.
 
