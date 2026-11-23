@@ -16,3 +16,7 @@ No friction observed. This run verified the documented setup and check with depe
 ## Replay check
 
 From the repository root, run `bun run setup` and wait for both locked installs to exit successfully. Then run `bun run typecheck`. Accept exit 0 and no TypeScript diagnostics.
+
+## Review (cold nested install)
+
+Revision `511358f4`. With `extensions/obsidian-tracker/node_modules` moved aside, `tsc --noEmit` reported exactly 57 `error TS` diagnostics, the audit's count. `bun run setup` then installed `obsidian@1.13.1` (11 packages), and `bun run typecheck` exited 0 with 0 diagnostics in ~20 s. The README Development line names the step that was missing.
