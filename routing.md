@@ -16,7 +16,7 @@ Choose the stance whose deliverable fits, for the lowest wall time to accepted c
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.
 - `reviewer`: Review a change against its contract (and the driver's log when there is one) and repair it directly; non-visual work.
 - `verify`: Drive changed behavior as its user would, without reading the implementation; write predictions before first use; record outcomes, frictions, expectations and replayable checks.
-- `visual-reviewer`: Review and repair work whose acceptance is what a user sees: rendered surface, layout, visual coherence, usability. It also makes aesthetic improvements to the surface the change renders, not only corrections. Choose it when the driver's packet is visual.
+- `visual-reviewer`: Review and repair work whose acceptance is what a user sees: rendered surface, layout, visual coherence, usability. It also makes aesthetic improvements to the surface the change renders, not only corrections. In the reconciler it is eligible when the driver's packet is visual and the reviewed range touches a configured rendered path.
 
 ## Continuation actions
 

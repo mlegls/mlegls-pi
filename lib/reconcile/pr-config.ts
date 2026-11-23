@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { git } from "./checks.ts";
+import { reconcileConfig } from "./config.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
 import type { GlobalRunState } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost } from "./pr-types.ts";
@@ -23,14 +24,7 @@ export function resolveLanding(cwd: string, explicit?: LandingMode, prior?: Glob
 		return captured;
 	}
 	if (explicit !== undefined) return explicit;
-	const file = git(cwd, "ls-tree", "HEAD", "--", ".pi/reconcile.json");
-	if (!file) return "local";
-	let config: unknown;
-	try { config = JSON.parse(git(cwd, "show", "HEAD:.pi/reconcile.json")); }
-	catch { throw new Error("Malformed committed .pi/reconcile.json"); }
-	if (!config || typeof config !== "object" || Array.isArray(config))
-		throw new Error("Expected an object in committed .pi/reconcile.json");
-	const value = (config as { land?: unknown }).land;
+	const value = reconcileConfig(cwd).land;
 	return value === undefined ? "local" : landingMode(value);
 }
 

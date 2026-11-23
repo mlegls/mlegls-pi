@@ -47,6 +47,7 @@ import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVer
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
 import type { GlobalRunState, RefinementAttempt, WorkerPhase } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
+import { touchesRenderedSurface } from "./config.ts";
 import { prepareStaging, resolveLanding } from "./pr-config.ts";
 import { createPullRequestHost } from "./pr-host.ts";
 import { advancePullRequest } from "./pull-request.ts";
@@ -823,8 +824,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (phase === "drive") return [contract, "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 			return [contract, "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 		};
-		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
-		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
 		c.launching = saved ?? nextHandle(slug, phase);
 		c.launchPhase = phase;
@@ -843,12 +842,22 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 		}
 		if (!registered && phase === "implement" && !plan.after && !admitImplementation(slug, c, issue, base, c.launching)) return;
+		let only: string[] | undefined;
+		if (phase === "review" && !registered) {
+			const visual = (c.drive?.evidence as { visual?: boolean } | undefined)?.visual === true
+				&& !!stance("visual-reviewer") && !!c.base && touchesRenderedSurface(cwd, c.base, adoptHead ?? base);
+			// A join also reviews structure across its children, even if it has no new rendered surface.
+			if (c.self) only = visual ? ["tidy", "visual-reviewer"] : ["tidy"];
+			else if (visual) only = ["visual-reviewer"];
+			else only = stance("reviewer") ? ["reviewer"] : byRole("review").map(a => a.name).filter(name => name !== "visual-reviewer");
+		}
+		const after = !only || only.includes(plan.after?.agent ?? "") ? plan.after : undefined;
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
 			if (from) return phasePrompt();
 			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
 			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
 			return [phasePrompt(), mergePrompt("collector", refreshWorker(path, pathOf(c.into)))].filter(Boolean).join("\n\n");
-		}, phase === "refine" ? { chain: c, adopt } : undefined, c, plan.after, adoptHead);
+		}, phase === "refine" ? { chain: c, adopt } : undefined, c, after, adoptHead);
 		if (phase === "refine" && c.refinement && registered) s.refinements[c.refinement].worker = handle;
 		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, pendingLaunch: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });

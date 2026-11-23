@@ -19,6 +19,16 @@ bun lib/reconcile/main.ts status --cwd /absolute/owner-checkout
 
 The captured mode survives restart. Starting without `--land` resumes the saved mode, not a subsequently changed project setting; explicitly requesting a different mode is refused. Restart via the same `start` command after a missing process. Do not use `stop` to simulate a crash: explicit stop retires resources and marks the run stopped.
 
+## Rendered review paths
+
+In any landing mode, set `renderedPaths` in the owner's committed `.pi/reconcile.json`. For Concept:
+
+```json
+{"renderedPaths":["packages/web/src/**","landing/**","packages/web/official/**/*.html","*.css"]}
+```
+
+Paths are repository-relative globs; a pattern with no slash matches basenames at any depth. Visual evidence invites `visual-reviewer` only when the reviewed Git range changes a matching file. With no match (or no paths configured), an ordinary reviewer still opens the shots; a join uses `tidy`.
+
 ## What waiting means
 
 The tree's children land in collectors, then one root branch lands in run-owned PR staging. This can unlock the next sibling, **not** a dependent outside the tree. Global issues and their original reviewed evidence remain pending until the remote target really receives the code. Status includes `land`, `pr.url`, PR number/branch, repair/review receipts and exceptions. Workers are retired during an idle PR wait; the reconciler polls about once a minute.

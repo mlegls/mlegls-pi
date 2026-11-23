@@ -1,0 +1,3 @@
+{
+  "renderedPaths": ["packages/web/src/**", "landing/**", "packages/web/official/**/*.html", "*.css"]
+}
