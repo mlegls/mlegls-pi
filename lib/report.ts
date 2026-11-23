@@ -20,7 +20,7 @@ export function statusRepairMessage(text: string, error: string | null): string 
 }
 
 // Some roles report only their phase-specific handoff.
-const keySet = new Set<string>([...HANDOFF_KEYS, "status", "children", "respec", "landingRepair"]);
+const keySet = new Set<string>([...HANDOFF_KEYS, "status", "children", "respec", "landingRepair", "data"]);
 const fencePattern = /^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(json|yaml|yml)[ \t]*\r?\n([\s\S]*?)^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(?=\r?$)/gim;
 
 function firstStatus(text: string, structuredStatuses: unknown[]): { status: Status | null; error: string | null } {
@@ -43,9 +43,10 @@ function firstStatus(text: string, structuredStatuses: unknown[]): { status: Sta
     const afterHeading = statusAt(nonblank[1]);
     if (afterHeading) candidates.push(afterHeading);
   }
+  // Later standalone sentinels are bare words; headings and list items are prose.
   for (const line of lines) {
     const candidate = statusAt(line);
-    if (candidate && line.trim().replace(/^(?:(?:>+\s*)|(?:#{1,6}\s*)|(?:[-+*]\s+)|(?:\*\*|__|\*|_))*/, "").trim().toLowerCase() === candidate) {
+    if (candidate && line.trim().toLowerCase() === candidate) {
       candidates.push(candidate);
     }
   }
@@ -96,9 +97,9 @@ function* handoffBlocks(text: string): Generator<HandoffBlock> {
 export function parse(text: string, cwd?: string): Report {
   const results = [...handoffBlocks(text)];
   const blocks = results.filter(result => "value" in result);
-  const block = blocks[0];
+  const block = blocks.at(-1);
   const body = block ? text.slice(0, block.start) + text.slice(block.end) : text;
-  // Keep the first payload, but check every handoff's status. Fence placeholders
+  // Keep the last payload, but check every handoff's status. Fence placeholders
   // prevent a scalar or later prose from becoming a first-word sentinel.
   let statusText = "", end = 0;
   for (const block of blocks) {
