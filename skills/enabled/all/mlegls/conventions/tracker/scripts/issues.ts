@@ -14,7 +14,9 @@
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync, mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, openSync, closeSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { createHash, randomUUID } from "node:crypto";
-import { checkout, git } from "../../../../../../../lib/thread/git.ts";
+import { checkout, commonDir, git } from "../../../../../../../lib/thread/git.ts";
+import { bbClaimHolders } from "../../../../../../../lib/thread/bb.ts";
+import { readLive } from "../../../../../../../lib/session-meta/live.ts";
 import { homedir, tmpdir } from "node:os";
 import { join, basename, dirname, resolve, relative, sep } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -22,7 +24,7 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
 import { ASSIGNEE_GRAMMAR, parseAssignee } from "../../../../../../../lib/assignee.ts";
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
-import { inflight } from "./inflight.ts";
+import { inflight, reconcileRuns, reconcilerAlive } from "./inflight.ts";
 // Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
 let flight = new Map<string, string[]>();
 
@@ -558,19 +560,51 @@ function openBlockers(i: Issue, all: Map<string, Issue>): string[] {
   return [...i.blockedBy.filter((b) => !all.has(b) || !complete(all.get(b)!, all)), ...i.guards];
 }
 
-// A claim is carried by a worktree named for the slug, or for the run the claim names.
-let worktrees: string[] | undefined;
-function claimLive(i: Issue): boolean | undefined {
-  if (!i.claimedBy) return undefined;
-  if (!worktrees) {
-    const p = spawnSync("git", ["worktree", "list", "--porcelain"], { encoding: "utf8" });
-    worktrees = p.status === 0 ? p.stdout.split("\n").filter((l) => /^(worktree|branch) /.test(l)) : [];
-  }
-  const runs = [...i.claimedBy.matchAll(/run_[0-9a-f]+/g)].map((m) => m[0]);
-  const tokens = [i.slug, ...runs];
-  if (!runs.length && (!i.next || !["research", "implement", "simplify"].includes(i.next))) return undefined;
-  return worktrees.some((w) => tokens.some((t) => w.includes(t)));
+function claimLiveness(dir: string) {
+  let runs: ReturnType<typeof reconcileRuns> | undefined;
+  let worktrees: string[][] | undefined;
+  let worktreeNames: Set<string> | undefined;
+  let liveSessions: Set<string> | undefined;
+  let bbHolders: Set<string> | null | undefined;
+  const savedRuns = () => runs ??= (() => {
+    const common = commonDir(dir);
+    return common ? reconcileRuns(common) : [];
+  })();
+  const trees = () => worktrees ??= (() => {
+    try { return git(dir, "worktree", "list", "--porcelain", "-z").split("\0\0").filter(Boolean).map(block => block.split("\0")); }
+    catch { return []; }
+  })();
+
+  return (i: Issue): boolean | undefined => {
+    const claim = i.claimedBy;
+    if (!claim) return;
+    const reconcile = /^reconcile:([^/\s]+)(?:\/[^\s]+)?$/.exec(claim);
+    if (reconcile) {
+      const run = savedRuns().find(r => r.root === reconcile[1]);
+      if (run) return reconcilerAlive(run);
+      return; // No saved state to judge.
+    }
+    const session = /^session:(\S+)$/.exec(claim)?.[1];
+    if (session) {
+      worktreeNames ??= new Set(trees().slice(1).flatMap(fields =>
+        existsSync(fields[0].slice("worktree ".length))
+          ? fields.filter(l => /^(worktree|branch) /.test(l)).map(l => basename(l))
+          : []));
+      if (worktreeNames.has(i.slug) || worktreeNames.has(session)) return true;
+      if (savedRuns().some(r => (r.ownerSession === session || Object.hasOwn(r.workerSessions ?? {}, session)) && reconcilerAlive(r))) return true;
+      liveSessions ??= new Set(readLive(false, { prune: false }).map(l => l.sessionId));
+      if (liveSessions.has(session)) return true;
+      if (bbHolders === undefined) bbHolders = bbClaimHolders() ?? null;
+      return bbHolders?.has(session);
+    }
+    // Legacy claims can only be joined to worktree names.
+    const legacyRuns = [...claim.matchAll(/run_[0-9a-f]+/g)].map(m => m[0]);
+    if (!legacyRuns.length && (!i.next || !["research", "implement", "simplify"].includes(i.next))) return;
+    return trees().flat().some(w => /^(worktree|branch) /.test(w) && [i.slug, ...legacyRuns].some(t => w.includes(t)));
+  };
 }
+
+let claimLive: ReturnType<typeof claimLiveness>;
 
 function line(i: Issue, all: Map<string, Issue>): string {
   const bits = [i.next ? "legacy next:" + i.next : "own:" + (i.stage ?? "none") + " effective:" + effectiveStage(i, all)];
@@ -1089,6 +1123,7 @@ const fixTargets = cmd === "check" && repair && positional.length > 1 ? movedIss
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);
 validateGraph(all);
+claimLive = claimLiveness(dir);
 flight = inflight(dir, slug => !all.has(slug) || all.get(slug)!.archived || complete(all.get(slug)!, all));
 const scoped = [...all.values()].filter(within(arg, all));
 const open = scoped.filter(i => !i.archived && !complete(i, all));
@@ -1155,7 +1190,7 @@ if (cmd !== "lint") switch (cmd) {
       if (i.next && !KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
       // Contract and state belong in the body; dated records and evidence belong in attachments and git.
       if (!i.archived && !complete(i, all) && statSync(i.file).size > 32_000) say(`${i.slug}: body is ${Math.round(statSync(i.file).size / 1000)}KB; keep the contract and current state, move records to attachments`);
-      if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; verify ownership before clearing`);
+      if (claimLive(i) === false) say(`${i.slug}: stale claim ${i.claimedBy}; verify ownership before clearing`);
       // Agent refinement stays monotone. A subtree parked for human shaping keeps its parent and honest stage.
       const effective = effectiveStage(i, all);
       if (!i.archived && (i.stage === "spec" || i.stage === "ticket") && effective && STAGES.indexOf(effective) < STAGES.indexOf(i.stage) && model(i, all).eligible) {

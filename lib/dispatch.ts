@@ -1,15 +1,15 @@
 // Launch a parent-planned ready wave as wm workers. No dependency graph or retries.
-import { execFile, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { ASSIGNEE_GRAMMAR, parseAssignee } from "./assignee.ts";
 import { integrateThread, workerOf, ThreadMergeConflict, type ThreadCleanup, type WorkerThread } from "./thread";
-import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
+import { bbThreads, bbWorkerThread, tellBb, type BbThread } from "./thread/bb.ts";
 import { CommitHookFailure } from "./thread/commit-hooks";
 import { commonDir } from "./thread/git.ts";
 import { HANDOFF_KEYS } from "./report.ts";
-import { stopThreadProcesses } from "./thread/lifecycle-cleanup";
+import { retireThread, stopThreadProcesses } from "./thread/lifecycle-cleanup";
 import type { SpawnOptions } from "./wm";
 
 export interface Assignment {
@@ -51,8 +51,6 @@ export interface Options {
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
   active: Handle[];
-  /** Legacy receipt field; never selects a terminal transport. */
-  session?: string;
 }
 
 /** A tracker issue's `assignee` must admit the launch: `agent` admits any agent, `agent:<stance>` that
@@ -71,13 +69,11 @@ export function assertAssignee(task: Assignment) {
     throw new Error("dispatch: " + task.handle + " is pinned to model:" + pin.model + ":" + pin.effort);
 }
 
-/** A submitted worker. Plain data, so it survives being persisted (supervision state); reattach with wm.attach(run, handle). */
+/** A submitted worker. Plain data, so it survives being persisted (supervision state). */
 export interface Handle {
   handle: string; run: string; path: string;
   /** The worker's bb thread: how everything finds it. Absent on a receipt from before run state held it. */
   bb?: string;
-  /** Legacy receipt field; never selects a terminal transport. */
-  session?: string;
 }
 /** The worker's run/handle label. */
 export const topic = (h: Handle) => h.run + "/" + h.handle;
@@ -149,9 +145,9 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       let ownerThread = parent;
       const wm = await import("./wm.ts");
       const worker = await wm.spawn({ run: options.run, handle: task.handle, issue: task.issue ?? options.protectedIssue, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, adoptHead: task.adoptHead, prepare: task.prepare, model: task.model, effort: task.effort, after: task.after, cwd, parentThread: options.parentThread, session: options.session,
+        agent: task.agent, role: task.role, base: task.base, adoptHead: task.adoptHead, prepare: task.prepare, model: task.model, effort: task.effort, after: task.after, cwd, parentThread: options.parentThread,
         withOwner: options.withOwner ? create => options.withOwner!(owner => { ownerThread = owner.thread; return create(owner); }) : undefined });
-      receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, bb: worker.bb });
+      receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.cwd, bb: worker.id });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, ownerThread);
     } catch (error) {
       receipt.failed = { assignment: task, error: error instanceof Error ? error.message : String(error) };
@@ -169,7 +165,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
-export interface Integration { branch: string; mode: "rebase" | "merge"; output?: string; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string;
+export interface Integration { branch: string; mode: "rebase" | "merge"; output?: string; removed?: ThreadCleanup; killed?: number[]; branchDeleted?: string; branchKept?: string;
   /** Retirement found no live worker (its bb thread archived or gone): nothing was stopped or removed, and this worktree, if
    * it still exists, is left as it is, ignored state and all. */
   gone?: { worktree?: string } }
@@ -180,8 +176,12 @@ export async function findWorker(given: (Pick<Handle, "run" | "handle"> & Partia
   if (typeof given !== "string") {
     if (given.bb) return { bb: given.bb, path: resolve(given.path ?? cwd) };
   }
+  return findWorkerIn(given, cwd, await bbThreads());
+}
+
+function findWorkerIn(given: Pick<Handle, "run" | "handle"> & Partial<Handle> | string, cwd: string, threads: Map<string, BbThread>) {
   const repo = commonDir(cwd);
-  const found = bbWorkerThread(await bbThreads(), typeof given === "string" ? given : given.handle, typeof given === "string" ? undefined : given.run,
+  const found = bbWorkerThread(threads, typeof given === "string" ? given : given.handle, typeof given === "string" ? undefined : given.run,
     path => !repo || !commonDir(path) || commonDir(path) === repo);
   if (!found) return undefined;
   if (typeof given !== "string" && given.path && resolve(given.path) !== resolve(found.environmentPath!)) throw new Error("Receipt does not match bb thread " + found.id);
@@ -190,8 +190,9 @@ export async function findWorker(given: (Pick<Handle, "run" | "handle"> & Partia
 
 /** The worker's live thread, found through run state or bb; undefined once its bb thread is archived or gone. */
 async function liveRecord(given: Handle | string, cwd: string): Promise<{ worker: Handle; thread: WorkerThread } | undefined> {
-  const found = await findWorker(given, cwd);
-  const thread = found ? await workerOf(found.bb, typeof given === "string" ? undefined : { run: given.run, handle: given.handle }) : undefined;
+  const threads = await bbThreads();
+  const id = (typeof given !== "string" && given.bb) || findWorkerIn(given, cwd, threads)?.bb;
+  const thread = id ? await workerOf(id, typeof given === "string" ? undefined : given, threads) : undefined;
   if (!thread) return undefined;
   if (typeof given !== "string" && thread.cwd !== realpathSync(given.path)) throw new Error("Receipt does not match thread " + thread.id);
   return { thread, worker: { ...(typeof given === "string" ? {} : given), ...thread.worker, path: thread.cwd, bb: thread.id } };
@@ -251,20 +252,12 @@ export async function retire(given: Handle | string, options: { cwd?: string } =
     return { killed: [], gone: path && existsSync(path) ? { worktree: path } : {} };
   }
   const { worker, thread } = record;
-  const git = (...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
-    execFile("git", ["-C", thread.project, ...args], (error, out, err) => done({ code: typeof (error as any)?.code === "number" ? (error as any).code : error ? 1 : 0, out: out.trim(), err: err.trim() })));
-  const result: Awaited<ReturnType<typeof retire>> = {};
-  const wm = await import("./wm.ts");
-  const host = wm.attach(worker.run, worker.handle, cwd, worker.session, thread.id);
-  try { result.removed = await host.close(true); } finally { host.drop(); }
+  const removed = await retireThread(thread, "unmerged");
   // Its in-flight record goes with the thread; a kept branch still shows in the tracker as a branch ahead.
   try { rmSync(ledgerFile(thread.project, worker.run, worker.handle), { force: true }); } catch {}
-  result.killed = (result.removed as { killed?: number[] } | undefined)?.killed ?? [];
-  const branch = thread.branch;
-  const parent = await git("config", "--get", "branch." + branch + ".ab-parent");
-  const cherry = parent.code || !parent.out ? { code: 1, out: "", err: "missing ab-parent" } : await git("cherry", parent.out, branch);
-  const merged = !cherry.code && !cherry.out.split("\n").some(line => line.startsWith("+"));
-  const deleted = merged ? await git("branch", "-D", branch) : { code: 1, out: "", err: cherry.err || "not merged into " + parent.out };
-  if (deleted.code) result.branchKept = branch + ": " + (deleted.err || deleted.out); else result.branchDeleted = branch;
+  const result: Awaited<ReturnType<typeof retire>> = { removed, killed: removed.killed };
+  const deleted = removed.branchesDeleted[0], kept = removed.branchesKept[0];
+  if (deleted) result.branchDeleted = deleted;
+  if (kept) result.branchKept = kept.branch + ": " + kept.reason;
   return result;
 }

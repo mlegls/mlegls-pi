@@ -4,13 +4,14 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { constrain, summary } from "./main";
 import { constrainedPrompt, load, saveState, type State } from "./reconcile";
-import { spawn, type Worker } from "../wm";
+import { spawn } from "../wm";
+import { abandonThread, type WorkerThread } from "../thread";
 import { fakeBb } from "../thread/fake-bb";
 
 // Approved fake-bb smoke: an owner restriction outlives the running implement turn.
 test("a mid-implement constraint reaches drive and review first prompts, not an unconstrained node", async () => {
 	const root = realpathSync(mkdtempSync("/tmp/rc-constraint-")), repo = join(root, "repo");
-	const saved = { ...process.env }, workers: Worker[] = [];
+	const saved = { ...process.env }, workers: WorkerThread[] = [];
 	const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 	try {
 		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
@@ -30,7 +31,7 @@ test("a mid-implement constraint reaches drive and review first prompts, not an 
 		const implement = await fixture("implement", "live");
 		const state: State = { backend: "threads", root: "fixture", cwd: repo, owner: "thr_fixture", budget: 1, pid: process.pid,
 			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { live: { into: repo, self: false, phase: "implement", retries: {}, workers: [],
-				handle: { run: "fixture", handle: "implement", path: implement.dir, bb: implement.bb } } },
+				handle: { run: "fixture", handle: "implement", path: implement.cwd, bb: implement.id } } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 		saveState(state);
 		const text = "The live vault is read-only; do not re-run prepare.";
@@ -41,13 +42,13 @@ test("a mid-implement constraint reaches drive and review first prompts, not an 
 		expect(summary({ ...load(repo, "fixture")!, running: true }).constraints.live).toEqual([text]);
 		for (const phase of ["drive", "review"]) {
 			const worker = await fixture(phase, "live");
-			expect(fake.threads().find(t => t.id === worker.bb)?.prompt).toContain(text);
+			expect(fake.threads().find(t => t.id === worker.id)?.prompt).toContain(text);
 		}
 		const other = await fixture("other-drive", "other");
-		expect(fake.threads().find(t => t.id === other.bb)?.prompt).not.toContain(text);
-		expect(fake.threads().find(t => t.id === implement.bb)?.prompt).not.toContain(text);
+		expect(fake.threads().find(t => t.id === other.id)?.prompt).not.toContain(text);
+		expect(fake.threads().find(t => t.id === implement.id)?.prompt).not.toContain(text);
 	} finally {
-		try { await Promise.all(workers.map(worker => worker.close())); }
+		try { await Promise.all(workers.map(worker => abandonThread(worker.id))); }
 		finally { process.env = saved; rmSync(root, { recursive: true, force: true }); }
 	}
 }, 30_000);

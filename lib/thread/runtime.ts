@@ -5,14 +5,14 @@ import { excludeTracker } from "./tracker-worktree";
 import { runSetup, setupLog } from "./setup";
 import { checkout, commonDir, git } from "./git";
 import { validateLaunch } from "./launch";
-import { assertBb, bbThreads, bbWorkerThread, logBb, spawnBb } from "./bb";
+import { assertBb, bbThreads, bbWorkerThread, logBb, spawnBb, type BbThread } from "./bb";
 import type { NewThreadOptions, WorkerCheckout, WorkerIdentity, WorkerThread } from "./types";
 
 /** A worker's thread from its bb thread id: its worktree is the thread's environment, its branch what is checked out
  * there, its identity the title `<run>/<handle>` bb was given at spawn. undefined once the bb thread is archived or gone.
  * `expected` insists on that identity. */
-export async function workerOf(id: string, expected?: WorkerIdentity): Promise<WorkerThread | undefined> {
-	const entry = (await bbThreads()).get(id);
+export async function workerOf(id: string, expected?: WorkerIdentity, threads?: Map<string, BbThread>): Promise<WorkerThread | undefined> {
+	const entry = (threads ?? await bbThreads()).get(id);
 	if (!entry || entry.archivedAt) return;
 	if (!entry.environmentPath) throw new Error("bb thread " + id + " has no environment");
 	const title = entry.title ?? "";

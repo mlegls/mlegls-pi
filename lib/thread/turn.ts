@@ -117,6 +117,3 @@ export async function readTurn(bb: string, after = 0, o: { onSkip?: (after: numb
 	const body = items.message?.data?.item?.text ?? "";
 	return { seq: next, report: { ...base, tags: [parse(body).status ?? "turn-end"], body } };
 }
-
-/** The newest reportable turn completion of a bb thread after log sequence `after`. */
-export const lastTurn = async (bb: string, after = 0): Promise<TurnReport | undefined> => (await readTurn(bb, after)).report;
