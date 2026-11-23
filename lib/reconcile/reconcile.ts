@@ -1324,7 +1324,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const bbErrored = (h: Handle) => bbThread(h)?.status === "error";
 	const bbError = async (h: Handle) => {
 		let detail = "";
-		try { detail = (await logBb(h.bb!)).split("── Error").slice(1).at(-1)?.replace(/^[─\s]+/, "").trim() ?? ""; } catch (e) { detail = "(bb thread log failed: " + e + ")"; }
+		try { detail = (await logBb(h.bb!, 3)).split("── Error").slice(1).at(-1)?.replace(/^[─\s]+/, "").trim() ?? ""; } catch (e) { detail = "(bb thread log failed: " + e + ")"; }
 		return "bb thread " + h.bb + " for " + h.handle + " is in error and its pi will not report:\n" + (detail || "(no error block in its log)");
 	};
 	async function retireChain(c: Chain, { finished = false, preserveTracker = false } = {}) {
@@ -1353,6 +1353,19 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** Receipts outlive chains. A partial retirement/deletion is retried next tick, and raised to the owner once it keeps
 	 * failing. A worker whose worktree or bb thread is gone is already retired. Settled collectors discard untracked
 	 * and ignored state, as worker retirement does; tracked changes and unlanded commits still need the owner. */
+	/** Workers of earlier phases retire before their commits land, so retirement keeps their branches. Once the
+	 * node has landed, delete this node's worker branches whose commits the destination contains. */
+	function deleteLandedBranches(slug: string, destination: string) {
+		const head = git(destination, "rev-parse", "HEAD");
+		const own = new RegExp("^" + slug.replace(/[.]/g, "\\.") + "-(?:refine|implement|drive|review|handler)-[0-9a-z]+$");
+		for (const branch of git(controlCwd, "for-each-ref", "--format=%(refname:short)", "refs/heads/" + slug + "-*").split("\n")) {
+			if (!own.test(branch)) continue;
+			try {
+				if (git(controlCwd, "cherry", head, branch).split("\n").some(l => l.startsWith("+"))) continue;
+				git(controlCwd, "branch", "-D", branch);
+			} catch (e) { note("landing cleanup " + slug + ": kept branch " + branch + ": " + String((e as Error)?.message ?? e).split("\n")[0]); }
+		}
+	}
 	async function cleanupLandings() {
 		for (const operation of Object.values(s.landingOps)) {
 			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
@@ -1385,6 +1398,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					if (git(controlCwd, "branch", "--list", col.branch)) git(controlCwd, "branch", "-D", col.branch);
 					if (s.collectors[operation.slug]?.path === col.path) delete s.collectors[operation.slug];
 				}
+				deleteLandedBranches(operation.slug, operation.destination);
 				finishLandingCleanup(completion, operation.slug);
 				cleanupFailures.delete(operation.slug);
 			} catch (e) {

@@ -57,11 +57,11 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
   const ledger = join(common, "ab-dispatch");
   if (existsSync(ledger)) for (const n of readdirSync(ledger)) {
     try {
-      const d = JSON.parse(readFileSync(join(ledger, n), "utf8")) as { issue?: string | null; path?: string; agent?: string; run?: string };
+      const d = JSON.parse(readFileSync(join(ledger, n), "utf8")) as { issue?: string | null; path?: string; handle?: string; agent?: string | null; run?: string };
       if (!d.issue || !d.path || !existsSync(d.path) || done(d.issue)) continue;
       const head = git(d.path, "rev-parse", "HEAD");
       const ahead = head ? Number(git(issuesDir, "rev-list", "--count", main.head + ".." + head) ?? 0) : 0;
-      add(d.issue, "dispatched " + (d.agent ?? "?") + " (" + d.run + (ahead ? ", +" + ahead : ", no commits yet") + ")");
+      add(d.issue, "dispatched " + (d.handle ?? "?") + (d.agent ? " as " + d.agent : "") + " (" + d.run + (ahead ? ", +" + ahead : ", no commits yet") + ")");
     } catch {}
   }
 

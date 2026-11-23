@@ -268,4 +268,5 @@ export async function deleteBbEnvironment(id: string): Promise<void> {
 		if (thread.environmentId) await bb(["environment", "delete", thread.environmentId]);
 	} catch (error) { if (!gone(error)) throw error; }
 }
-export const logBb = (id: string) => command(cli(), ["thread", "log", id, "--all"]);
+/** The thread's timeline: its latest `turns` user turns, or all of it (paged by bb, so very long threads are slow). */
+export const logBb = (id: string, turns?: number) => command(cli(), ["thread", "log", id, ...(turns ? ["--limit", String(turns)] : ["--all"])]);

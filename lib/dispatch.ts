@@ -1,7 +1,7 @@
 // Launch a parent-planned ready wave as wm workers. No dependency graph or retries.
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { integrateThread, workerOf, ThreadMergeConflict, type ThreadCleanup, type WorkerThread } from "./thread";
 import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
@@ -95,15 +95,17 @@ export interface Receipt {
 /** Each submitted worker leaves a record under the repository's git dir, so the tracker shows the issue it
  * works on as in flight (the tracker skill's inflight script) while its branch has not merged. The issue is the
  * assignment's, else the first issue file or wikilink its prompt names. Records whose worktree is gone are ignored. */
+const ledgerFile = (cwd: string, run: string, handle: string) => join(
+  execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim(),
+  "ab-dispatch", (run + "-" + handle).replace(/[^A-Za-z0-9_-]/g, "-") + ".json");
 function ledger(cwd: string, task: Assignment, run: string, handle: Handle, parent?: string) {
   try {
-    const common = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim();
     const issue = task.issue ?? task.prompt.match(/issues\/(?!archive\/)([a-z0-9][a-z0-9-]*)(?:\.md|\]\]|\|)/)?.[1];
-    const dir = join(common, "ab-dispatch");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, (run + "-" + task.handle).replace(/[^A-Za-z0-9_-]/g, "-") + ".json"), JSON.stringify({
+    const file = ledgerFile(cwd, run, task.handle);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify({
       run, handle: task.handle, bb: handle.bb, issue: issue ?? null, path: handle.path, parent: parent ?? null,
-      agent: handle.handle, at: new Date().toISOString() }, null, 1));
+      agent: task.agent ?? null, at: new Date().toISOString() }, null, 1));
   } catch {}
 }
 
@@ -257,6 +259,8 @@ export async function retire(given: Handle | string, options: { cwd?: string } =
   const wm = await import("./wm.ts");
   const host = wm.attach(worker.run, worker.handle, cwd, worker.session, thread.id);
   try { result.removed = await host.close(true); } finally { host.drop(); }
+  // Its in-flight record goes with the thread; a kept branch still shows in the tracker as a branch ahead.
+  try { rmSync(ledgerFile(thread.project, worker.run, worker.handle), { force: true }); } catch {}
   result.killed = (result.removed as { killed?: number[] } | undefined)?.killed ?? [];
   const branch = thread.branch;
   const parent = await git("config", "--get", "branch." + branch + ".ab-parent");
