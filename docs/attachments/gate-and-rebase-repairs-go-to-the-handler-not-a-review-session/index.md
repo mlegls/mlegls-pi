@@ -27,3 +27,19 @@ done
 The three routing predictions held. `code-repair` stops at review dispatch, so this does not demonstrate a subsequent approved landing. One handler launch was observed per mode; the replay output does not expose the repair-budget debit. The entry point does not exercise lint, an untouched-line typecheck failure, or a second node sharing the same target formatting defect. The registry reports `stance/handler`; no live Sol request was made.
 
 No interaction friction prevented the drive. The receipt's `done` field remained false even for the two landed modes, so landing was judged from the landing event and target receipt, not ticket closure. No servers or external services were started.
+
+## Review
+
+Reviewed the diff against the ticket alongside the drive above; the three replays pass on the reviewed head (`bun test lib/reconcile/landing.test.ts`). Classifier checks for the driver's unobservable stories, run against this checkout's real history with `gateRepair`:
+
+| Gate tail | Before review | After review |
+| --- | --- | --- |
+| `file(3,5): error TS…` in a file the node didn't change | typecheck → handler | same |
+| tsc diagnostic on a line the node changed | review | same |
+| tsc diagnostic in a changed file, untouched line | typecheck → handler | same |
+| pretty tsc (`file:3:5 - error TS…`) | review (unclassified) | typecheck → handler |
+| oxlint `Found 0 warnings and 2 errors.` | lint → handler | same |
+| format failure in a file the node didn't change | target-tip handler | same |
+| format failure in a file the node changed | target-tip handler, which finds the target clean, reports `targetFormatAbsent`, then a second handler on the node branch (two repair debits) | one handler on the node branch, format-only, no review |
+
+Repair budget: `landing repair` counts toward `BUDGET.repair` (2), survives `startPhase`, and the owner's resolution of the `(after 2 repairs)` exception resets it like the other repair budgets. A second node needing the same target format fix waits while a sibling's target handler is live, then finds the target tip moved, drops its job and re-lands on the fixed tip (read in `advanceLandingRepair`, not replayed).
