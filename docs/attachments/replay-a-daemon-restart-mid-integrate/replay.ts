@@ -40,7 +40,7 @@ for (const mode of cases.filter(mode => !selector || mode === selector)) {
 			f.commit(worker.path, ".reconcile/proposal/parent.md", "---\nstage: null\n---\n");
 			handoff = { children: ["part"] };
 		} else {
-			f.tracker.update("root", { stage: "ticket" });
+			f.tracker.update("root", { stage: "ready", decompose: null });
 			f.git(worker.path, "reset", "--hard", "main");
 			const path = "docs/attachments/review/index.md";
 			head = f.commit(worker.path, path, "Reviewed fixture delivery.\n");

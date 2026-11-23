@@ -4,7 +4,7 @@ assignee: "agent:technical"
 priority: 2
 author: "session:thr_pgxs7mv9k9"
 part-of: "[[projects/mlegls-pi/issues/refinement-creates-children-atomically-on-acceptance]]"
-claimed-by: "reconcile:refinement-creates-children-atomically-on-acceptance/refinement-creates-children-atomically-on-acceptance-refine-2"
+claimed-by: "reconcile:refinement-creates-children-atomically-on-acceptance"
 ---
 Switch refinement from live provisional tracker writes to branch-committed proposals applied atomically on acceptance, strip proposal files when landing interface commits, delete the dead provisional-claim/baseline/discard/adopt machinery from the reconciler, update [refine.md](../../agents/roles/refine.md) and tracker docs, and prove crash-safe replay on a real vault tracker. Part of [[projects/mlegls-pi/issues/refinement-creates-children-atomically-on-acceptance]], meeting [[projects/mlegls-pi/issues/github-tracker-atomic-refinement-create]] at [proposal.ts](../../lib/reconcile/proposal.ts) (`369f35de`).
 

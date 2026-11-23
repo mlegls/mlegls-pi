@@ -128,8 +128,8 @@ test("a close holds on a cited packet that exists only on a drive branch, names 
 	const f = protocolFixture();
 	try {
 		const body = (name: string) => name + " contract\n\nPacket: [index](../attachments/" + name + "/index.md)\n";
-		f.tracker.create({ slug: "held", fields: { stage: "ticket", assignee: "agent", author: "user:fixture" }, body: body("held") });
-		f.tracker.create({ slug: "stale", fields: { stage: "ticket", assignee: "agent", author: "user:fixture" }, body: body("stale") });
+		f.tracker.create({ slug: "held", fields: { stage: "ready", assignee: "agent", author: "user:fixture" }, body: body("held") });
+		f.tracker.create({ slug: "stale", fields: { stage: "ready", assignee: "agent", author: "user:fixture" }, body: body("stale") });
 		const base = f.git(f.cwd, "rev-parse", "HEAD");
 		const context: CompletionContext = {
 			state: f.state, tracker: f.tracker, pathOf: into => into === "root" ? f.collector : into,

@@ -508,6 +508,25 @@ test("check names the child that lowers a ready issue, and a side friction log",
   p.done();
 }, 30_000);
 
+test("writes refuse legacy stage names; an update that doesn't name a stage migrates a stored one", () => {
+  const legacy = frontmatter("stage: spec\nassignee: agent");
+  const p = project({ "issues/old-spec.md": legacy });
+  const file = join(p.root, "docs/issues/old-spec.md");
+  const write = (...args: string[]) => Bun.spawnSync([process.execPath, cli, ...args], { cwd: p.root, env: { ...process.env, TRACKER_VAULT: vault, PI_SESSION_ID: "fixture" } });
+  try {
+    for (const stage of ["goal", "spec", "ticket"]) {
+      const refused = write("update", "old-spec", "--fields", JSON.stringify({ stage }));
+      expect(refused.exitCode).not.toBe(0);
+      expect(refused.stderr.toString()).toContain("stage " + stage + " was renamed");
+      expect(write("create", "new-" + stage, "--fields", JSON.stringify({ stage }), "--body-file", "/dev/null").exitCode).not.toBe(0);
+    }
+    expect(readFileSync(file, "utf8")).toBe(legacy);
+    const updated = write("update", "old-spec", "--fields", JSON.stringify({ priority: 2 }));
+    expect({ code: updated.exitCode, err: updated.stderr.toString() }).toEqual({ code: 0, err: "" });
+    expect(readFileSync(file, "utf8")).toBe(frontmatter("stage: ready\nassignee: agent\ndecompose: true\npriority: 2"));
+  } finally { p.done(); }
+});
+
 test("update requires explicit permission to clear a non-empty issue body", () => {
   const metadata = frontmatter("stage: idea");
   const original = metadata + "Keep this contract.\n";

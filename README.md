@@ -45,7 +45,7 @@ prompts for pi, Claude Code and Codex.
 directories group skills by source and purpose; every directory with a `SKILL.md` is one skill, named by its directory.
 
 - `all/mlegls/`: my own skills.
-  - `lifecycle/`: carrying work from idea to done: `introduce`, `orient`, `map`, `plan`, `shape`, `implement`,
+  - `lifecycle/`: carrying work from idea to done: `introduce`, `orient`, `shape`, `implement`,
     `simplify`, `verify-story`, `garden`, `advance`.
   - `orchestrations/`: running other agents: `multi-agent`, `dispatch`, `merge`, `supervise`, `tend`.
   - `conventions/`: formats and rules other skills rely on: `tracker` (with its CLI in `scripts/`), `project-docs`,

@@ -25,7 +25,7 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 import { ASSIGNEE_GRAMMAR, parseAssignee } from "../../../../../../../lib/assignee.ts";
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight, reconcileRuns, reconcilerAlive } from "./inflight.ts";
-import { STAGES as STAGE_ORDER, knownStage, normalizeStageFields } from "../../../../../../../lib/stage.ts";
+import { STAGES as STAGE_ORDER, knownStage, normalizeStageFields, refuseLegacyStage } from "../../../../../../../lib/stage.ts";
 // Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
 let flight = new Map<string, string[]>();
 
@@ -437,6 +437,7 @@ async function updateAttachment(dir: string, locator: string, body: string, chec
 
 async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body: string | undefined, summary: string | undefined, evidence: string | undefined, checkForBodyWipe: boolean, ifRevision?: string): Promise<void> {
   validSlug(slug);
+  refuseLegacyStage(fields);
   await persist(withVaultLock(dir, () => {
     const all = load(dir);
     validateGraph(all);
@@ -446,7 +447,7 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
       const author = fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined);
       if (!author) throw new Error("create requires author or PI_SESSION_ID provenance");
       if (emptyIdentity(author)) throw new Error("author must be a nonempty provenance string");
-      const text = replaceContract("---\n{}\n---\n", storageFields(normalizeStageFields({ ...fields, author }), dir, all), body);
+      const text = replaceContract("---\n{}\n---\n", storageFields({ ...fields, author }, dir, all), body);
       changes.set(join(dir, slug + ".md"), text);
     } else {
       const i = issueFor(slug, all);
@@ -465,7 +466,7 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
         const stored = contract(current).doc.toJS({ maxAliasCount: 0 });
         const migrated: Record<string, unknown> = "stage" in fields ? {} : normalizeStageFields({ stage: stored.stage, ...(typeof stored.decompose === "boolean" ? { decompose: stored.decompose } : {}) });
         const legacy = "stage" in fields || migrated.stage === stored.stage ? {} : migrated;
-        changes.set(i.file, replaceContract(current, storageFields(normalizeStageFields({ ...legacy, ...fields }), dir, all), body));
+        changes.set(i.file, replaceContract(current, storageFields({ ...legacy, ...fields }, dir, all), body));
       } else if (cmd === "close") {
         if (i.archived) throw new Error("close requires a live issue");
         if (evidence !== undefined && (!evidence || evidence.startsWith("/") || evidence.includes("\\") || evidence.split("/").some(p => p === ".." || p === "." || !p)))

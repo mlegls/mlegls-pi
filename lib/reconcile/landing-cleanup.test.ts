@@ -12,7 +12,7 @@ async function landed(prepare: (f: ReturnType<typeof protocolFixture>, r: typeof
 	const r = await import("./reconcile");
 	const controller = new AbortController();
 	try {
-		f.tracker.update("root", { stage: "ticket" });
+		f.tracker.update("root", { stage: "ready", decompose: null });
 		f.bb.addThread("thr_owner");
 		const head = f.git(f.cwd, "rev-parse", "HEAD"), at = new Date().toISOString();
 		const result = { parent: null, summary: "root summary", handoff: {} };

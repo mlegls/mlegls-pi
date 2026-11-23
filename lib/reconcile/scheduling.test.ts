@@ -114,7 +114,7 @@ test("reviewed snapshot delivery catches up its stale collector, retains a waiti
 		mkdirSync(join(f.root, "agents/roles"), { recursive: true });
 		writeFileSync(join(f.root, "agents/shell.md"), "---\nrole: implement\n---\nShell fixture.\n");
 		writeFileSync(join(f.root, "agents/roles/implement.md"), "Shell fixture.\n");
-		f.tracker.update("root", { stage: "ticket", assignee: "agent:shell" });
+		f.tracker.update("root", { stage: "ready", decompose: null, assignee: "agent:shell" });
 		f.bb.addThread("thr_owner");
 		saveState(state(f));
 		start({ cwd: f.cwd, root: "root", owner: "thr_owner", budget: 1 }); running = true;

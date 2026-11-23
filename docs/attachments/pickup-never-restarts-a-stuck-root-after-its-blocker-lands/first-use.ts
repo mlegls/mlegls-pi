@@ -18,7 +18,7 @@ try {
 	writeFileSync(join(f.root, "agents/shell.md"), "---\nrole: implement\n---\nShell fixture.\n");
 	writeFileSync(join(f.root, "agents/roles/implement.md"), "Shell fixture.\n");
 	f.bb.addThread(owner);
-	f.create(root, { stage: "spec" });
+	f.create(root, { stage: "ready", decompose: true });
 	f.create(blocker, { "part-of": root, assignee: "human" });
 	f.create(child, { "part-of": root, "blocked-by": [blocker], assignee: "agent:shell", priority: 1 });
 	f.create(unchanged);

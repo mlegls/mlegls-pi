@@ -16,7 +16,7 @@ try {
 	writeFileSync(join(f.root, "agents/shell.md"), "---\nrole: implement\n---\nShell fixture.\n");
 	writeFileSync(join(f.root, "agents/roles/implement.md"), "Shell fixture.\n");
 	f.bb.addThread("thr_owner");
-	f.create("child", { "part-of": "root", stage: "goal", "claimed-by": "reconcile:root" });
+	f.create("child", { "part-of": "root", stage: "idea", "claimed-by": "reconcile:root" });
 	saveState({
 		backend: "threads", root: "root", cwd: f.cwd, owner: "thr_owner", budget: 1,
 		landed: {}, results: {}, landingOps: {}, refinements: {},

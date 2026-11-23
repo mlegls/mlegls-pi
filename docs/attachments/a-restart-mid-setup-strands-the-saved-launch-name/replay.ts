@@ -17,7 +17,7 @@ try {
 	mkdirSync(join(f.root, "agents/roles"), { recursive: true });
 	writeFileSync(join(f.root, "agents/shell.md"), "---\nrole: implement\n---\nOffline worker.\n");
 	writeFileSync(join(f.root, "agents/roles/implement.md"), "Offline worker.\n");
-	f.tracker.update("root", { stage: "ticket", assignee: "agent:shell" });
+	f.tracker.update("root", { stage: "ready", decompose: null, assignee: "agent:shell" });
 	f.bb.addThread("thr_owner");
 	const launching = "root-implement-1", path = join(f.cwd + "__worktrees", launching);
 	f.git(f.cwd, "worktree", "add", "--no-checkout", "-b", launching, path, "HEAD");

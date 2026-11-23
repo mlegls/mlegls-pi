@@ -3,7 +3,7 @@
 export const STAGES = ["idea", "ready", "done"] as const;
 export type Stage = (typeof STAGES)[number];
 
-/** Pre-2026-11-23 names, still read and accepted on writes. `spec` was `ready` that starts by decomposing. */
+/** Pre-2026-11-23 names: still read (stored files and receipts keep them), refused on writes. `spec` was `ready` that starts by decomposing. */
 export const LEGACY_STAGES: Readonly<Record<string, Stage>> = { goal: "idea", spec: "ready", ticket: "ready" };
 
 export const knownStage = (value: unknown): boolean =>
@@ -13,6 +13,13 @@ export function normalizeStage(value: unknown): Stage | undefined {
 	if (typeof value !== "string") return undefined;
 	if ((STAGES as readonly string[]).includes(value)) return value as Stage;
 	return Object.hasOwn(LEGACY_STAGES, value) ? LEGACY_STAGES[value] : undefined;
+}
+
+/** A write names a current stage; the refusal says what the legacy name became. */
+export function refuseLegacyStage(fields: Record<string, unknown> | undefined): void {
+	const stage = fields?.stage;
+	if (typeof stage !== "string" || !Object.hasOwn(LEGACY_STAGES, stage)) return;
+	throw new Error("stage " + stage + " was renamed: write stage: " + LEGACY_STAGES[stage] + (stage === "spec" ? " with decompose: true" : "") + " (stages are " + STAGES.join(" < ") + ")");
 }
 
 /** Rewrite legacy stage names in a field set. Unless the set gives decompose, `spec` becomes `ready` with
