@@ -3,14 +3,13 @@ import { existsSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFil
 import { dirname, join } from "node:path";
 import type { Fields, Stage, TrackerOptions } from "./tracker.ts";
 import { git } from "./thread/git.ts";
-import { requireGithub, type GithubProject, type GithubSnapshot, type GithubIssue } from "./tracker-github-snapshot.ts";
+import { requireGithub, type GithubProject, type GithubIssue } from "./tracker-github-snapshot.ts";
 import type { GlobalRunState } from "./reconcile/tracker-state.ts";
 
 export interface GithubReceipt {
 	stage?: Stage | null;
 	claim?: { claimedBy: string; assigneeId: string };
 	removed?: boolean;
-	removing?: { parent: string | null };
 }
 export interface CreationIntent {
 	marker: string;
@@ -31,7 +30,6 @@ export interface GithubJournal {
 	creates: Record<string, CreationIntent>;
 	updates: Record<string, { fields: Fields; body?: string; claim?: GithubReceipt["claim"] }>;
 	closes: Record<string, { marker: string; body: string; done?: boolean }>;
-	removes: Record<string, { claim: NonNullable<GithubReceipt["claim"]>; parent: string | null; done?: boolean }>;
 	moves: Record<string, { marker: string; body: string; done?: boolean }>;
 }
 export const reconcileDirectory = (project: GithubProject) => dirname(dirname(project.directory));
@@ -41,7 +39,7 @@ export const journalFile = (project: GithubProject, root?: string) => root
 
 export function loadJournal(project: GithubProject, root?: string): GithubJournal {
 	const file = journalFile(project, root);
-	if (!existsSync(file)) return { version: 1, repository: identity(project), issues: {}, creates: {}, updates: {}, closes: {}, removes: {}, moves: {} };
+	if (!existsSync(file)) return { version: 1, repository: identity(project), issues: {}, creates: {}, updates: {}, closes: {}, moves: {} };
 	const value = JSON.parse(readFileSync(file, "utf8")) as GithubJournal;
 	requireGithub(value.version === 1 && value.repository === identity(project), "private journal repository mismatch: " + file);
 	return value;
@@ -90,7 +88,7 @@ export function encodeGithubBody(body: string, fields: Fields, marker?: string):
 /** Pending create intents are already exact receipts: the random marker, parent,
  * native assignment and repository must ALL agree. No title/login heuristic.
  * This read-only projection also covers a process dying before saving the response. */
-export function readGithubReceipt(project: GithubProject, snapshot: GithubSnapshot, issue: GithubIssue): GithubReceipt | undefined {
+export function readGithubReceipt(project: GithubProject, issue: GithubIssue): GithubReceipt | undefined {
 	const slug = "gh-" + issue.number;
 	const shared = loadJournal(project);
 	let base = shared.issues[slug];
@@ -101,13 +99,6 @@ export function readGithubReceipt(project: GithubProject, snapshot: GithubSnapsh
 	for (const raw of journals) {
 		if (raw.repository !== identity(project)) continue;
 		const receipt = raw.issues[slug];
-		const removal = raw.removes[slug];
-		if (removal && !removal.done) {
-			const finished = issue.state === "CLOSED" && issue.stateReason === "NOT_PLANNED" && !issue.parent
-				&& !issue.blockedBy.some(edge => edge.repository.id === snapshot.repository.id)
-				&& !issue.assignees.some(user => user.id === removal.claim.assigneeId);
-			base = { ...base, ...(finished ? { removed: true } : { removing: { parent: removal.parent } }) };
-		}
 		const pending = raw.updates[slug]?.claim;
 		if (pending && issue.assignees.some(user => user.id === pending.assigneeId)) claim = pending;
 		if (receipt?.claim && !pending) {
@@ -117,14 +108,6 @@ export function readGithubReceipt(project: GithubProject, snapshot: GithubSnapsh
 		for (const intent of Object.values(raw.creates)) if (marker && intent.marker === marker && !receipt?.removed) {
 			// A completed intent is not residual authority after release/transfer.
 			if (intent.published || base?.removed) continue;
-			// Discard may discover a lost-response create before materialization. Its
-			// saved removal authority precedes detachment/release, which legitimately
-			// change the original creation parent and assignment during replay.
-			const removal = raw.removes[slug];
-			if (removal?.claim.claimedBy === intent.claim?.claimedBy && intent.claim) {
-				claim ??= removal.claim;
-				continue;
-			}
 			if (Object.hasOwn(intent.fields, "stage")) base = { ...base, stage: intent.fields.stage as GithubReceipt["stage"] };
 			if (!intent.claim) continue;
 			requireGithub(issue.parent?.id === intent.parentId && issue.assignees.some(user => user.id === intent.claim!.assigneeId),

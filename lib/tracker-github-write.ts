@@ -16,6 +16,7 @@ import {
 } from "./tracker-github-state.ts";
 import { GithubRestError, githubRelations, relationBody } from "./tracker-github-relations.ts";
 import { git } from "./thread/git.ts";
+import { resolveProposedChild } from "./reconcile/proposal.ts";
 import type { GlobalRunState } from "./reconcile/tracker-state.ts";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value, (_key, value) =>
@@ -32,7 +33,6 @@ function assigneeRole(value: unknown): AssigneeRole | undefined {
 	return parsed.kind === "agent" ? "ready-for-agent" : "ready-for-human";
 }
 const stable = (run: GlobalRunState) => "reconcile:" + run.root;
-const attempt = (run: GlobalRunState, token: unknown) => Object.values(run.refinements).find(value => value.claim === token && value.claim === stable(run) + "/" + value.handle);
 
 export function githubRest<T>(project: GithubProject, method: string, path: string, body?: unknown): T {
 	assertWithinBudget(project);
@@ -76,10 +76,10 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		const issue = snapshot.issues.find(issue => slugOf(issue) === slug);
 		requireGithub(issue, "no issue " + slug); return issue;
 	};
-	const savedClaim = (snapshot: GithubSnapshot, issue: GithubIssue) => readGithubReceipt(project, snapshot, issue)?.claim;
+	const savedClaim = (issue: GithubIssue) => readGithubReceipt(project, issue)?.claim;
 	function own(snapshot: GithubSnapshot, issue: GithubIssue, run: GlobalRunState | undefined) {
-		const claim = savedClaim(snapshot, issue);
-		requireGithub(run && claim && (claim.claimedBy === stable(run) || attempt(run, claim.claimedBy))
+		const claim = savedClaim(issue);
+		requireGithub(run && claim && claim.claimedBy === stable(run)
 			&& claim.assigneeId === snapshot.viewer.id && issue.assignees.some(user => user.id === claim.assigneeId),
 			slugOf(issue) + ": no exact owned native assignment/receipt");
 		return claim;
@@ -88,33 +88,14 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		for (let slug: string | null = child; slug; slug = rows.get(slug)?.partOf ?? null) if (slug === parent) return true;
 		return false;
 	}
-	function claimChange(snapshot: GithubSnapshot, issue: GithubIssue | undefined, rows: Map<string, GithubNode>,
-		run: GlobalRunState | undefined, value: unknown, parent?: string) {
+	function claimChange(snapshot: GithubSnapshot, issue: GithubIssue, run: GlobalRunState | undefined, value: unknown) {
 		requireGithub(run, "claimed-by requires saved run authority");
-		const previous = issue && savedClaim(snapshot, issue);
-		if (issue && issue.assignees.some(user => user.id === snapshot.viewer.id) && !previous)
+		const previous = savedClaim(issue);
+		if (issue.assignees.some(user => user.id === snapshot.viewer.id) && !previous)
 			throw new Error("GitHub tracker: same-login assignment is foreign without its exact receipt");
-		if (previous) own(snapshot, issue!, run);
-		else requireGithub(!issue?.assignees.length, "refusing to claim foreign-assigned issue");
-		if (value === null) return;
-		requireGithub(typeof value === "string", "claim must be an exact run/attempt token");
-		const target = attempt(run, value);
-		if (value !== stable(run)) {
-			requireGithub(target && ["writing", "adopting"].includes(target.phase), "no writable exact attempt authority for " + value);
-			requireGithub(parent && contains(rows, parent, target.node), "provisional child is outside its attempt subtree");
-			requireGithub(!issue || (!(target.baseline ?? []).includes(slugOf(issue)) && slugOf(issue) !== target.node), "cannot claim a baseline as provisional");
-		}
-		if (previous && previous.claimedBy !== value) {
-			const source = attempt(run, previous.claimedBy);
-			if (value === stable(run)) {
-				const acceptance = source?.acceptance;
-				requireGithub(source?.phase === "accepting" && acceptance?.preparedHead
-					&& git(acceptance.destination, "merge-base", acceptance.preparedHead, "HEAD") === acceptance.preparedHead,
-					"stable reservation requires the saved committed-stub landing");
-			} else requireGithub(source && target && source.phase === "adopting" && target.phase === "adopting"
-				&& source.successor === target.handle && target.adoptedFrom === source.handle,
-				"claim transfer requires exact saved adoption authority");
-		}
+		if (previous) own(snapshot, issue, run);
+		else requireGithub(!issue.assignees.length, "refusing to claim foreign-assigned issue");
+		requireGithub(value === null || value === stable(run), "claim must match the stable run reservation");
 	}
 	function validate(fields: Fields, rows: Map<string, GithubNode>, slug: string, body?: string) {
 		requireGithub(fields && typeof fields === "object" && !Array.isArray(fields), "fields must be an object");
@@ -207,7 +188,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		validate(fields, rows, slug, body);
 		const decoded = decodeGithubBody(issue.body);
 		if ("author" in fields && decoded.fields.author !== undefined) requireGithub(fields.author === decoded.fields.author, "author provenance is immutable");
-		if ("claimed-by" in fields) claimChange(snapshot, issue, rows, run, fields["claimed-by"], (fields["part-of"] ?? rows.get(slug)!.partOf) as string | undefined);
+		if ("claimed-by" in fields) claimChange(snapshot, issue, run, fields["claimed-by"]);
 		const labelIds = labels(snapshot, issue, fields, readyFor), extra = extras(issue, fields);
 		const input: Record<string, unknown> = { id: issue.id };
 		if ("title" in fields) input.title = fields.title;
@@ -233,12 +214,12 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		if (!issue.comments.some(comment => comment.author?.login === login && comment.body.trimEnd().endsWith(marker))) mutation("addComment", "AddCommentInput", { subjectId: issue.id, body });
 	};
 	function release(snapshot: GithubSnapshot, issue: GithubIssue, run?: GlobalRunState) {
-		const claim = savedClaim(snapshot, issue);
+		const claim = savedClaim(issue);
 		if (!claim) {
 			// A lost successful unassignment response leaves only the private half.
 			if (run) {
 				const local = loadJournal(project, run.root), old = local.issues[slugOf(issue)]?.claim;
-				if (old && old.assigneeId === snapshot.viewer.id && (old.claimedBy === stable(run) || attempt(run, old.claimedBy)))
+				if (old && old.assigneeId === snapshot.viewer.id && old.claimedBy === stable(run))
 					receipt(snapshot, issue, { "claimed-by": null }, run);
 			}
 			return;
@@ -273,18 +254,23 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				const labelIds = labels(snapshot, undefined, fields, readyFor);
 				let claim: GithubReceipt["claim"];
 				if ("claimed-by" in fields) {
-					requireGithub(typeof fields["part-of"] === "string", "provisional create requires an existing parent");
-					requireGithub(run && attempt(run, fields["claimed-by"]), "provisional create requires exact attempt authority");
-					claimChange(snapshot, undefined, rows, run, fields["claimed-by"], fields["part-of"] as string);
-					claim = { claimedBy: fields["claimed-by"] as string, assigneeId: snapshot.viewer.id };
+					const parent = fields["part-of"];
+					requireGithub(run && fields["claimed-by"] === stable(run) && typeof parent === "string"
+						&& Object.values(run.refinements).some(({ phase, node, acceptance }) =>
+							phase === "accepting" && acceptance?.landedHead && contains(rows, parent, node)
+							&& acceptance.proposal?.children.some(child => isDeepStrictEqual(request,
+								resolveProposedChild(child, acceptance.created ?? {}, stable(run))))
+							&& git(acceptance.destination, "merge-base", acceptance.landedHead, "HEAD") === acceptance.landedHead),
+						"claimed create requires an exact child of a landed accepting proposal");
+					claim = { claimedBy: stable(run), assigneeId: snapshot.viewer.id };
 				}
 				const journal = loadJournal(project, run?.root);
-				const prior = Object.entries(journal.creates).filter(([, intent]) => intent.request === request.slug && intent.claim?.claimedBy === claim?.claimedBy);
+				const parentId = fields["part-of"] ? native(snapshot, fields["part-of"] as string).id : undefined;
+				const prior = Object.entries(journal.creates).filter(([, intent]) => intent.request === request.slug && intent.parentId === parentId && intent.claim?.claimedBy === claim?.claimedBy);
 				requireGithub(prior.length <= 1, "requested create alias has conflicting private intents");
-				const key = prior[0]?.[0] ?? hash({ requested: request.slug, claim: claim?.claimedBy });
+				const key = prior[0]?.[0] ?? hash({ requested: request.slug, parentId, claim: claim?.claimedBy });
 				const intent = journal.creates[key] ??= {
-					marker: randomUUID(), request: request.slug, fields, body: request.body, claim,
-					parentId: fields["part-of"] ? native(snapshot, fields["part-of"] as string).id : undefined,
+					marker: randomUUID(), request: request.slug, fields, body: request.body, claim, parentId,
 				};
 				requireGithub(isDeepStrictEqual(intent.fields, fields) && intent.body === request.body, "requested create alias already has a different contract; update its actual gh identity instead");
 				saveJournal(project, journal, run?.root);
@@ -335,7 +321,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				}
 				requireGithub(intent.marker === "<!-- mlegls-pi:result:" + hash({ slug, result }) + " -->", "close already has a different saved reviewed result");
 				if (intent.done) return;
-				if (savedClaim(snapshot, issue)) own(snapshot, issue, run);
+				if (savedClaim(issue)) own(snapshot, issue, run);
 				comment(issue, intent.marker, intent.body, snapshot.viewer.login);
 				if (issue.state === "OPEN") mutation("closeIssue", "CloseIssueInput", { issueId: issue.id, stateReason: "COMPLETED" });
 				release(snapshot, issue, run);
@@ -345,34 +331,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				const complete = loadJournal(project, run?.root); complete.closes[slug]!.done = true; saveJournal(project, complete, run?.root);
 			});
 		},
-		remove(slug) {
-			write((snapshot, run) => {
-				const issue = native(snapshot, slug), journal = loadJournal(project, run?.root);
-				if (journal.removes[slug]?.done) return;
-				const pending = journal.removes[slug];
-				requireGithub(issue.state === "OPEN" || issue.stateReason === "NOT_PLANNED", "cannot discard an already completed issue");
-				const claim = pending && run && !issue.assignees.length ? pending.claim : own(snapshot, issue, run);
-				requireGithub(run, "remove requires saved run authority");
-				const owner = attempt(run, claim.claimedBy);
-				requireGithub(owner && (["writing", "stopping", "cleaning"].includes(owner.phase) || pending && owner.phase === "removed" && !owner.successor)
-					&& !(owner.baseline ?? []).includes(slug) && owner.node !== slug && (!pending || pending.claim.claimedBy === claim.claimedBy), "remove requires still-owned provisional child");
-				const rows = view(snapshot);
-				requireGithub(contains(rows, slug, owner.node) || journal.removes[slug], "provisional child moved outside attempt");
-				requireGithub(![...rows].some(([id, row]) => id !== slug && (row.partOf === slug || row.blockedBy.includes(slug))), "retained children/dependents prevent removal");
-				requireGithub(issue.assignees.every(user => user.id === claim.assigneeId), "foreign assignment prevents removal");
-				const remoteFinished = pending && issue.state === "CLOSED" && issue.stateReason === "NOT_PLANNED" && !issue.parent
-					&& !issue.blockedBy.some(edge => edge.repository.id === snapshot.repository.id) && !issue.assignees.length;
-				if (!remoteFinished) {
-					validate({ "part-of": null, "blocked-by": [] }, rows, slug);
-					journal.removes[slug] ??= { claim, parent: rows.get(slug)?.partOf ?? null }; saveJournal(project, journal, run?.root);
-					if (issue.state === "OPEN") mutation("closeIssue", "CloseIssueInput", { issueId: issue.id, stateReason: "NOT_PLANNED" });
-					applyUpdate(snapshot, slug, { "part-of": null, "blocked-by": [] }, undefined, run);
-				}
-				release(snapshot, issue, run);
-				const shared = loadJournal(project); (shared.issues[slug] ??= {}).removed = true; delete shared.issues[slug]!.claim; saveJournal(project, shared);
-				const complete = loadJournal(project, run?.root); complete.removes[slug]!.done = true; saveJournal(project, complete, run?.root);
-			});
-		},
+		remove() { throw new Error("GitHub tracker: removing provisional issues is unsupported"); },
 		moveOut(slug, reason) {
 			requireGithub(typeof reason === "string" && reason.trim(), "move-out requires a reason");
 			write((snapshot, run) => {
