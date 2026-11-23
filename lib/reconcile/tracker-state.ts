@@ -73,6 +73,9 @@ export interface RefinementAttempt {
 }
 
 export const workerPhases = ["refine", "implement", "drive", "review"] as const;
+
+/** <root>.json is a run's state (roots may contain dots); the GitHub tracker keeps <root>.github.json journals beside it. */
+export const isRunStateFile = (name: string) => name.endsWith(".json") && !name.endsWith(".github.json");
 export type WorkerPhase = typeof workerPhases[number];
 
 /** The reconciler's State extends this. Missing landed is a manual rebuild,

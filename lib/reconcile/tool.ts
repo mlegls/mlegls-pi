@@ -21,7 +21,8 @@ if (import.meta.main) {
 		reconcile: (p: { issue: string; budget?: number; land?: Parameters<typeof start>[0]["land"] }) =>
 			start({ cwd, root: p.issue, owner, ownerSession: session(), budget: p.budget ?? 6, land: p.land }),
 		reconcile_stop: (p: { issue: string }) => stop(cwd, p.issue),
-		reconcile_status: (p: { issue?: string }) => campaigns(cwd).filter(s => !p.issue || s.root === p.issue).map(summary),
+		// Finished runs stay on disk for history; only a named root brings one back.
+		reconcile_status: (p: { issue?: string }) => campaigns(cwd).filter(s => p.issue ? s.root === p.issue : !s.finished || s.running).map(summary),
 		reconcile_resolve: ({ issue, node, ...resolution }: { issue: string; node: string }) => {
 			resolveException(cwd, issue, node, resolution);
 			return { queued: true };

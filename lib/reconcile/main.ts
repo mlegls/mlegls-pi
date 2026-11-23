@@ -11,7 +11,7 @@ import { retire, stop as stopWorker, tell, topic, type Handle } from "../dispatc
 import { bbThreads } from "../thread/bb";
 import { commonDir } from "../thread/git";
 import { pidAlive as alive } from "../wm";
-import { existsSync, linkSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { discardRefinement, replaceRefinement } from "./refinement";
 import { parseArgs } from "node:util";
@@ -20,7 +20,7 @@ import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTra
 import { codeStatus } from "./code-version";
 import { captureWorkerForeignWork } from "./foreign-work";
 import { POST_LANDING } from "./post-landing";
-import { workerPhases } from "./tracker-state";
+import { isRunStateFile, workerPhases } from "./tracker-state";
 import { spawnRun, waitForPredecessor } from "./process";
 
 export function start(o: StartOptions): { pid: number; log: string } {
@@ -119,8 +119,7 @@ export async function stop(cwd: string, root: string) {
 export function campaigns(cwd: string): (State & { running: boolean })[] {
 	const dir = stateDir(cwd);
 	if (!existsSync(dir)) return [];
-	// Only <root>.json is a run's state: the GitHub tracker keeps <root>.github.json journals beside it.
-	return readdirSync(dir).filter(f => /^[^.]+\.json$/.test(f)).map(f => load(cwd, f.slice(0, -5))!).filter(Boolean).map(s => ({ ...s, running: !s.finished && !!s.pid && alive(s.pid) }));
+	return readdirSync(dir).filter(isRunStateFile).map(f => load(cwd, f.slice(0, -5))!).filter(Boolean).map(s => ({ ...s, running: !s.finished && !!s.pid && alive(s.pid) }));
 }
 
 export function summary(s: State & { running: boolean }) {
@@ -129,7 +128,8 @@ export function summary(s: State & { running: boolean }) {
 		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, bb: c.handle?.bb, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into === s.pr?.path ? "(PR staging)" : c.into }])),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null }])),
 		cwd: s.cwd, land: s.land ?? "local", target: s.target ?? (s.pr ? "github:" + s.pr.repository + ":" + s.pr.baseBranch : s.cwd),
-		pr: s.pr, landed: s.landed, results: s.results, landingOps: s.landingOps, refinements: s.refinements,
+		// A landing operation's result is the same record as results[slug].
+		pr: s.pr, landed: s.landed, results: s.results, landingOps: Object.fromEntries(Object.entries(s.landingOps ?? {}).map(([k, { result: _, ...op }]) => [k, op])), refinements: s.refinements,
 		constraints: s.constraints ?? {},
 		moved: s.moved, log: s.log.slice(-15),
 	};
@@ -156,7 +156,10 @@ export function resolveException(cwd: string, root: string, node: string, resolu
 		} finally { rmSync(tmp, { force: true }); }
 		return;
 	}
-	writeFileSync(file, JSON.stringify(resolution));
+	// The run's tick may read it at any moment: publish it whole.
+	const tmp = file + "." + crypto.randomUUID();
+	writeFileSync(tmp, JSON.stringify(resolution));
+	renameSync(tmp, file);
 }
 
 export async function constrain(cwd: string, root: string, node: string, text: string, phase = "all") {
@@ -182,14 +185,14 @@ export async function constrain(cwd: string, root: string, node: string, text: s
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
 		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, quiet: { type: "boolean" }, predecessor: { type: "string" }, phase: { type: "string" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
-	const usage = "usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT [--phase all|refine|implement|drive|review]";
+	const usage = "usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status [issue] | resolve <issue> <node> <json> | constrain <issue> <node> TEXT [--phase all|refine|implement|drive|review]";
 	if (values.help) { console.log(usage); process.exit(0); }
 	const [cmd, root, ...rest] = positionals;
 	const cwd = resolve(values.cwd!);
 	if (cmd === "run" && root && values.owner) { await waitForPredecessor(Number(values.predecessor)); process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"], quiet: values.quiet }); }
-	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, budget: Number(values.budget), land: values.land as StartOptions["land"] })));
+	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"], quiet: values.quiet })));
 	else if (cmd === "stop" && root) console.log(JSON.stringify(await stop(cwd, root)));
-	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
+	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).filter(s => root ? s.root === root : !s.finished || s.running).map(summary), null, 1));
 	else if (cmd === "resolve" && root && rest.length === 2) resolveException(cwd, root, rest[0], JSON.parse(rest[1]));
 	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(await constrain(cwd, root, rest[0], rest[1], values.phase)));
 	else { console.error(usage); process.exit(2); }

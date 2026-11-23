@@ -6,6 +6,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statS
 import { dirname, join, resolve } from "node:path";
 import { git } from "./checks.ts";
 import type { State } from "./reconcile.ts";
+import { isRunStateFile } from "./tracker-state.ts";
 
 const DONE_SHOWN = 10;
 /** A finished run drops out this long after it finished. */
@@ -82,7 +83,7 @@ function states(commonDir: string): State[] {
 	if (!existsSync(dir)) return [];
 	const out: State[] = [];
 	for (const f of readdirSync(dir)) {
-		if (!/^[^.]+\.json$/.test(f)) continue;
+		if (!isRunStateFile(f)) continue;
 		const file = join(dir, f);
 		try {
 			const mtimeMs = statSync(file).mtimeMs;
