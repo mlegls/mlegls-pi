@@ -2,6 +2,10 @@
 stage: idea
 author: session:b8c305ef-a0b0-41ad-9c26-1a43247c6129
 ---
+---
+stage: idea
+author: session:b8c305ef-a0b0-41ad-9c26-1a43247c6129
+---
 A live pi process is not proof that its worker is progressing. Surface or recover an assistant turn ending with `stopReason: error` after a grace period, without treating a healthy long turn or normal idle after a report as dead.
 
 Concept's root supervisor (`mail/2d15485e`) observed on 2026-10-01, on pre-0be483a reconcilers:
@@ -37,3 +41,5 @@ On 2026-11-18, Concept's [[projects/concept/issues/drive-a-tutor-judged-lesson-c
 The retry also interrupted on 2026-11-18. The completed assistant item actually contains a `blocked` handoff (@thread:thr_cqydpqi5rz#msg=1640), followed by the same BB provider error at seq 1643, a failed turn at 1644, and a completed compaction turn at 1648. The reconciler raised `worker ended without a status`; its handler recovered the handoff from the assistant item and used that to act on the product blockers rather than retry a completed drive. Worktree head was clean at `5c7d49e65`. The cause of the Pi interruption is still unknown. Recovery needs to distinguish an interruption before a report from one after a complete report was already emitted.
 
 On 2026-11-24, Concept's `a-dependent-patch-takes-only-the-base-it-needs` refiner @thread:thr_giktmje8cc#msg=255 received the run owner's ready contract answer, then emitted only `⚠ Individual quota reached … Resets in 6m59s`. BB emitted an `item/completed` of type `agentMessage` and `turn/completed` with `status: completed` (seq 255–256); the status-repair prompt got the same quota response (seq 262–263). The reconciler escalated `status (after 2 repairs)` before the quota reset. The workaround was to preserve the owner's answer in the issue contracts and retry refinement after reset. This exhausts the repair budget even with the failed-turn recovery in [[projects/mlegls-pi/issues/interrupted-bb-worker-turn-consumes-handoff-repair-budget]] because BB reports a completed turn. Investigate carrying the quota and reset as a provider signal rather than asking a quota-limited worker to repair its handoff.
+
+The same run's next refiner (@thread:thr_v34n6pecsz#msg=409) hit the Gemini five-hour quota with 35m49s left. All three quota-only turns completed (seq 396, 403 and 410), BB provider-retry had no pending row, and the two handoff repairs raised the same exception. There was no proposal or partial commit to recover.
