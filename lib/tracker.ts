@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { getGithubTracker } from "./tracker-github.ts";
 import { findIssuesDir } from "../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts";
@@ -115,9 +117,32 @@ export function getTracker(cwd: string, options: TrackerOptions = {}): Tracker {
 			}
 		}
 	};
+	// Every live reconciler polls the same tracker; one snapshot subprocess each starved the host (2026-11-25:
+	// 37 reconcilers, ~10 concurrent scans, load ~90 on 16 cores, worker launches timing out). Without the inflight
+	// overlay a snapshot is a pure function of the issue files and the CLI, so share it across processes keyed by
+	// their names, sizes and mtimes.
+	const snapshotJson = (args: string[]) => {
+		if (options.inflight !== false) return read(args);
+		const dir = findIssuesDir(cwd, false);
+		if (!dir) return read(args);
+		const hash = new Bun.CryptoHasher("sha256").update(JSON.stringify([cli, statSync(cli).mtimeMs, args]));
+		for (const name of readdirSync(dir, { recursive: true }).map(String).sort()) {
+			const s = statSync(join(dir, name));
+			hash.update(name + "\0" + s.size + "\0" + s.mtimeMs + "\n");
+		}
+		const cacheDir = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "tracker-snapshots");
+		const file = join(cacheDir, hash.digest("hex") + ".json");
+		try { return readFileSync(file, "utf8"); } catch {}
+		const out = read(args);
+		mkdirSync(cacheDir, { recursive: true });
+		const tmp = file + "." + process.pid + ".tmp";
+		writeFileSync(tmp, out);
+		renameSync(tmp, file);
+		return out;
+	};
 	return {
 		moveOut: slug => { run(["update", slug, "--fields", JSON.stringify({ assignee: "human" })]); },
-		snapshot: scope => new Map((JSON.parse(read(["snapshot", ...(scope ? [scope] : []), "--json"])).issues as Issue[]).map(i => [i.slug, i])),
+		snapshot: scope => new Map((JSON.parse(snapshotJson(["snapshot", ...(scope ? [scope] : []), "--json"])).issues as Issue[]).map(i => [i.slug, i])),
 		text: slug => read(["text", slug]),
 		fields: slug => JSON.parse(read(["fields", slug, "--json"])),
 		create: issue => run(["create", issue.slug, "--fields", JSON.stringify(issue.fields), "--body-file", "-"], issue.body).trim(),
