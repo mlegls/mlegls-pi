@@ -120,16 +120,17 @@ function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: strin
 
 export default function (pi: ExtensionAPI) {
 	pi.on("before_agent_start", ({ systemPromptOptions: options }, ctx) => {
-		let prompt = buildPrompt(options, ctx.sessionManager.getHeader()?.timestamp, toolCatalog(pi));
+		let prompt: string | undefined = buildPrompt(options, ctx.sessionManager.getHeader()?.timestamp, toolCatalog(pi));
 		// Pi's built-in MCP handler can populate mcp_servers (and connect direct tools)
 		// after this handler. Read the finished catalog when Pi renders the prompt.
 		Object.defineProperty(options, "forceSystemPrompt", {
 			configurable: true, enumerable: true,
 			get() {
 				const guide = browserGuidance(pi, options.sections?.mcp_servers);
-				return guide && !prompt.includes(guide) ? prompt + "\n\n" + guide : prompt;
+				return guide && prompt !== undefined && !prompt.includes(guide) ? prompt + "\n\n" + guide : prompt;
 			},
-			set(value: string) { prompt = value; }, // Other extensions can append to our prompt.
+			// Other extensions can append to our prompt, or clear it (ncept tutoring Sessions use pi's own).
+			set(value: string | undefined) { prompt = value; },
 		});
 	});
 }
