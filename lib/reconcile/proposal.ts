@@ -174,7 +174,9 @@ export function stripProposalCommits(cwd: string, base: string): string {
 		let parent = base, previous = git(cwd, "rev-parse", base + "^{tree}");
 		for (const id of git(cwd, "rev-list", "--ancestry-path", "--first-parent", "--reverse", base + "..HEAD").split("\n").filter(Boolean)) {
 			cmd("read-tree", id);
-			cmd("rm", "--cached", "-qr", "--ignore-unmatch", "--", PROPOSAL_DIR);
+			// -f: this private index holds an older commit's proposal, which differs from HEAD and the worktree whenever
+			// the refiner revised it later, and git rm refuses that without force (only the private index changes).
+			cmd("rm", "--cached", "-f", "-qr", "--ignore-unmatch", "--", PROPOSAL_DIR);
 			const tree = cmd("write-tree");
 			if (tree === previous) continue;
 			parent = git(cwd, "show", "-s", "--format=%P", id) === parent && tree === git(cwd, "rev-parse", id + "^{tree}")
