@@ -10,3 +10,5 @@ The snapshots' share of the load wasn't separated from the test workers, 6 local
 
 Two directions: share one snapshot per tracker revision across reconcilers (keyed by tracker HEAD/mtime), and have a launch that fails at thread.start under CPU pressure wait and retry rather than escalate to the owner as "worker errored".
 164dd718 shares snapshots across processes in ~/.cache/tracker-snapshots, keyed by issue-file names, sizes and mtimes (inflight:false reads only). A repeat in the concept repo took 0.4–1 s against 6.3 s. Each tracker write still invalidates every key, and launch retry under CPU pressure is still open.
+
+After the cache (2026-11-25 ~08:20 local), the next shared hot spot was \`bb thread list --include-hidden --json\`: 12 concurrent node processes at ~520% CPU in total, plus \`bb plugin list --json\` and \`bb thread log\`. Load stayed ~70 and launches kept failing at get_state.
